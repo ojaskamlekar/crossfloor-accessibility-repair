@@ -170,3 +170,19 @@ to treat a whole shared shaft's unit span as unavoidable. Its generic resource
 encoding also narrows, so literature priority remains open. Full regression: 734
 passed. Independent selected-set replay and eligible optimum certificate counts
 are emitted by the release checker, not inferred from test counts.
+
+
+Final archive reproduction (after cloning the code and extracting the review
+archive) is one command:
+
+```bash
+python scripts/reproduce_review2_release.py --evidence /path/to/extracted/evidence --output runs/rebuild-NEW
+```
+
+This audits source denominators and every measurement, regenerates eligible
+certificates, all submitted figures and the complete IEEE master, and compiles
+three LaTeX passes. Use `--skip-compile` only for source-only regeneration.
+Collecting new timing measurements remains a separate pinned campaign. The
+archive carries source history and licensed derived evidence, never raw IFCs or
+third-party research PDFs. The extended master is not a venue-specific page-limit
+version and has no inferred author metadata.
