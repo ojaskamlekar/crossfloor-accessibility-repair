@@ -138,7 +138,7 @@ def plots(rows,out):
     methods=[m for m in ("compressed","full","cp-sat","greedy-exchange")if any(r["solver"]==m for r in rows)]
     colors={"compressed":"#174d78","full":"#ba5a1c","cp-sat":"#23764b","greedy-exchange":"#8b4486"}
     mapping={"catalogue":"candidate_action_count","connectivity":"r","profiles":"p","ownership":"h","support":"L","compression":"L","compression-unfavorable":"candidate_action_count"}
-    fig,axes=plt.subplots(2,4,figsize=(10,5.3));axes=axes.flatten()
+    fig,axes=plt.subplots(3,3,figsize=(7.1,6.4));axes=axes.flatten()
     for ax,(family,param)in zip(axes,mapping.items()):
         for method in methods:
             subset=[r for r in rows if r["generator_family"]==family and r["solver"]==method]
@@ -157,13 +157,13 @@ def plots(rows,out):
                         y=r["end_to_end_seconds"]or r["solver_configuration"]["post_ready_wall_budget_seconds"]
                         ax.scatter(x,y,marker="^"if r["status"]!="internal_cap"else"x",s=28,color=colors[method],zorder=5)
             if xs:ax.errorbar(xs,ys,yerr=[low,high],marker="o",markersize=3,label=method,color=colors[method],capsize=2)
-        ax.set_title(family);ax.set_xlabel("measured "+param);ax.set_ylabel("function seconds");ax.set_yscale("log");ax.grid(alpha=.2)
-    axes[-1].axis("off");handles,labels=axes[0].get_legend_handles_labels();axes[-1].legend(handles,labels,loc="center",fontsize=8)
+        ax.set_title(family);ax.set_xlabel("actions"if param=="candidate_action_count"else"measured "+param);ax.set_ylabel("function seconds");ax.set_yscale("log");ax.grid(alpha=.2)
+    axes[-2].axis("off");axes[-1].axis("off");handles,labels=axes[0].get_legend_handles_labels();axes[-2].legend(handles,labels,loc="center",fontsize=8)
     axes[-1].text(.05,.05,"Median / IQR across declared runs.\nTriangles: wall limit / incumbent.\nCrosses: internal state/cut cap.\nNo timeout imputation into medians.",transform=axes[-1].transAxes,fontsize=8)
     fig.tight_layout();fig.savefig(out/"review2_scaling.pdf",bbox_inches="tight");plt.close(fig)
     # All declared compression and unfavorable cases, not one selected winner.
     data=[r for r in rows if r["generator_family"]in{"compression","compression-unfavorable"}and r["solver"]in{"compressed","full"}]
-    fig,axes=plt.subplots(1,3,figsize=(9,2.7))
+    fig,axes=plt.subplots(1,3,figsize=(7.1,2.9))
     for method,color in (("compressed",colors["compressed"]),("full",colors["full"])):
         for favorable,marker in (("compression","o"),("compression-unfavorable","s")):
             subset=[r for r in data if r["solver"]==method and r["generator_family"]==favorable and r["solver_statistics"]]
@@ -173,8 +173,8 @@ def plots(rows,out):
                     value=r["solver_statistics"].get(key)
                     if value is not None:by[r["size"]].append(value)
                 xs=sorted(by);ax.plot(xs,[median(by[x])for x in xs],marker=marker,color=color,ls="-"if marker=="o"else"--",label=method+" / "+("cyclic"if marker=="o"else"unfavorable"))
-                ax.set_xlabel("declared family size");ax.set_ylabel(key.replace("_"," "));ax.grid(alpha=.2)
-    axes[-1].legend(fontsize=6);fig.tight_layout();fig.savefig(out/"review2_compression.pdf",bbox_inches="tight");plt.close(fig)
+                ax.set_xlabel("family size");ax.set_ylabel({"representative_rows_removed":"rows removed","peak_retained_states":"peak retained states","representative_seconds":"reduction seconds"}[key]);ax.grid(alpha=.2)
+    handles,labels=axes[-1].get_legend_handles_labels();fig.legend(handles,labels,fontsize=7.5,ncol=2,loc="lower center");fig.tight_layout(rect=(0,.22,1,1));fig.savefig(out/"review2_compression.pdf",bbox_inches="tight");plt.close(fig)
     counts={m:Counter(r["status"]for r in rows if r["solver"]==m)for m in sorted({r["solver"]for r in rows})}
     statuses=[s for s in("optimal","feasible","infeasible","heuristic_failed","internal_cap","timeout","feasible_incumbent","unsupported","internal_error")if any(c[s]for c in counts.values())]
     fig,ax=plt.subplots(figsize=(7,2.8));bottom=np.zeros(len(counts))
@@ -199,13 +199,13 @@ def paper_section(output):
         status=", ".join(str(n)+" "+s.replace("_"," ")for s,n in details.items())
         lines.append(tex(method)+" & "+tex(status)+r"\\")
     lines += [r"\bottomrule\end{tabular}\end{table}","The common cohort contains "+str(d["common_case_pairs"])+" experiment/case pairs and exactly "+str(d["common_runs_per_method"])+" run positions per listed method; separate ablations and correctness-only oracle calls are excluded from these completion counts. The improved heuristic matches the exact cost on "+str(d["heuristic_quality"]["cost_matching_runs"])+" of "+str(d["heuristic_quality"]["compared_feasible_runs"])+" comparable feasible runs. Full original-action label matches are "+str(d["heuristic_quality"]["full_label_matching_runs"])+". Heuristic cost excess is measured against the known optimum, normalized by max(1,abs(optimum)); it is distinct from the CP-SAT incumbent/bound gap.",r"\begin{figure*}[t]\centering\includegraphics[width=.98\textwidth]{figures/review2_scaling.pdf}\caption{Declared structural families, plotted against measured parameters. Medians and interquartile ranges across cost seeds and fresh-process repeats retain timeout and internal-cap markers. Connectivity width also increases collision-cell count; cyclic size also increases span, so these are not perfectly isolated factorial effects.}\label{fig:review2-scaling}\end{figure*}",
-        r"\begin{figure*}[t]\centering\includegraphics[width=.96\textwidth]{figures/review2_compression.pdf}\caption{Every declared cyclic and unfavorable compression family. Removed rows, retained states and reduction time are separate measurements; row reduction alone does not establish a net runtime benefit.}\label{fig:review2-compression}\end{figure*}",
-        r"\subsection{Multi-Room Horizontal-Access Intervention}"]
+        r"\begin{figure*}[t]\centering\includegraphics[width=.96\textwidth]{figures/review2_compression.pdf}\caption{Every declared cyclic and unfavorable compression family. Removed rows, retained states and reduction time are separate measurements; row reduction alone does not establish a net runtime benefit.}\label{fig:review2-compression}\end{figure*}"]
     lines.append("The heuristic comparison covers "+str(d["heuristic_quality"]["distinct_serialized_inputs"])+" distinct serialized inputs; all observed feasible runs match the optimum cost on "+str(d["heuristic_quality"]["cost_matching_inputs"])+" of them. These are price-seeded/controlled inputs, not independent source buildings.")
     public=d["public_variants"]
     largest=max(d["compression_measurements"],key=int)
     comp=d["compression_measurements"][largest]["compressed"];full=d["compression_measurements"][largest]["full"]
     lines.append("The largest declared cyclic size is "+largest+": compressed mode removes a median "+str(comp["median_rows_removed"])+" rows, yet its median function time is "+f"{comp['median_seconds']:.3f}"+" seconds versus "+f"{full['median_seconds']:.3f}"+" for full mode. The declared compression families do not establish a net runtime advantage. We therefore position representative compression primarily as part of the completion-preserving theoretical state bound, with its measured overhead and cut-column limits explicit. Safe component pruning tightens the recorded component bound, but irrelevant-room probes need not reduce states because the implementation already introduces optional positions lazily. Reversed-order and memoization measurements are algorithm ablations, separate from altered-semantics controls.")
+    lines.append(r"\subsection{Multi-Room Horizontal-Access Intervention}")
     if "building_denominators"in d:
         b=d["building_denominators"]
         lines.append("Across all historical and current building-derived evidence, the mechanical source/room-ID audit counts "+str(b["distinct_audited_source_models"])+" audited source models, "+str(b["distinct_used_source_models"])+" used source models, "+str(b["distinct_selected_subsets"])+" distinct selected subsets and "+str(b["deduplicated_variant_definitions"])+" deduplicated variant definitions. There are "+str(b["full_building_experiments"])+" full-building experiments. Historical and new Duplex subsets use different room IDs; Molio's two-room and eight-room subsets likewise differ. The separate local-expiration checkpoint copies the same three multi-room controls and adds no new building, subset or variant definition.")

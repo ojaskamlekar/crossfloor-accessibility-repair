@@ -15,7 +15,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Restoring access across existing floors requires optimizing complete interventions while preserving room topology and physical asset semantics. We formalize strict cross-floor repair with frozen room polygons and adjacency, profile-specific rooted demands, atomic costs and verified shared-asset reuse. Rectangular footprints are compiled into owned collision cells. Two exact sweeps apply established representative-partition machinery to profile route witnesses while retaining every paid footprint. The complete-unit sweep retains owners within coupling units; an alternative cell-local sweep expires an owner name only after its last possible reuse at that cell. Its bound depends on individual action spans and owner-lifetime overlap rather than an entire shared shaft's span. We give correctness arguments, explicit preprocessing and label accounting, and a two-floor physical-bundle hardness boundary. Independent CP-SAT flow optimization, improved whole-action greedy, exhaustive small checks and replayable solutions support evaluation. A pinned campaign records 1,317 measurements across 69 experiment/case pairs; a separate 207-measurement checkpoint tests the local sweep. On declared 16- and 32-floor chains, earlier DP modes hit a state cap while local expiration and CP-SAT complete. A four-storey, eight-room IFC-derived control changes its optimal shaft chain when horizontal profile permissions change; local expiration preserves its cost and reduces peak raw states. These are controlled subsets with hypothetical access annotations. The contribution is a precise physical/interface transfer and structural accounting result; literature priority remains unconfirmed. Geometric guarantees concern supplied two-dimensional templates, not construction safety or statutory compliance.
+Restoring access across existing floors requires optimizing complete interventions while preserving room topology and physical asset semantics. We formalize strict cross-floor repair with frozen room polygons and adjacency, profile-specific rooted demands, atomic costs and verified shared-asset reuse. Rectangular footprints are compiled into owned collision cells. Two exact sweeps apply established representative-partition machinery to profile route witnesses while retaining every paid footprint. The complete-unit sweep retains owners within coupling units; an alternative cell-local sweep expires an owner name only after its last possible reuse at that cell. Its bound depends on individual action spans and owner-lifetime overlap rather than an entire shared shaft's span. We give correctness arguments, explicit preprocessing and label accounting, and a two-floor physical-bundle hardness boundary. Independent CP-SAT flow optimization, improved whole-action greedy, exhaustive small checks and replayable solutions support evaluation. A pinned campaign records 1,317 measurements across 69 experiment/case pairs; a separate 207-measurement checkpoint tests the local sweep. On declared 16- and 32-floor chains, earlier DP modes hit a state cap while local expiration and CP-SAT complete. A four-storey, eight-room IFC-derived control changes its optimal shaft chain when horizontal profile permissions change; local expiration preserves its cost and reduces peak raw states. These are controlled subsets with hypothetical access annotations. The contribution is an inspectable physical/interface transfer with action-span and owner-lifetime accounting. Geometric guarantees concern supplied two-dimensional templates, not construction safety or statutory compliance.
 \end{abstract}
 \begin{IEEEkeywords}
 accessibility repair, shared physical assets, exact optimization, parameterized algorithms, reproducible evaluation
@@ -123,17 +123,21 @@ The bipartite incidence graph of available actions and owners defines complete c
 
 \begin{table}[t]
 \caption{Measured Interface Parameters}\label{tab:parameters}
-\centering\begin{tabular}{p{.09\columnwidth}p{.80\columnwidth}}
+\centering\begin{tabular}{p{.18\columnwidth}p{.71\columnwidth}}
 \toprule Key & Definition, measurement and runtime role \\\midrule
+$F,m$ & Supplied floor/action counts; polynomial event size.\\
 $p$ & Supplied profile count; separates connectivity layers.\\
 $r$ & Computed maximum retained baseline components per profile/floor; bounds live positions.\\
 $z$ & Computed maximum collision cells per floor; bounds live resources.\\
 $L$ & Computed maximum complete-unit or baseline-edge support span in consecutive floors; controls look-ahead.\\
+$L_a$ & Computed individual full-action or baseline span; window of the cell-local sweep.\\
+$\kappa$ & Computed maximum overlap of per-cell owner-use intervals in the constructed order; cell-local owner domain.\\
 $g$ & Computed maximum owners per unit; descriptive, absent from refined exponent.\\
-$h$ & Computed maximum owners of one unit able to occupy a cell; controls resource domain.\\
+$h(J,c),h$ & Computed owners of unit $J$ able to use cell $c$, and their maximum; unit resource domain.\\
 $B$ & Supplied discrete input bit length, including costs and IDs; controls polynomial label work.\\
 $T_{rec}$ & Measured validation, geometry, cell, unit and component construction; additive preprocessing.\\
-$K,C$ & Supplied raw-state and cut-column caps; implementation limits, absent from the theorem.\\
+$S_{max}$ & Supplied raw-state cap; operational, absent from the theorem.\\
+$C_{max}$ & Supplied cut-column cap; operational, absent from the theorem.\\
 \bottomrule\end{tabular}\end{table}
 
 Table~\ref{tab:parameters} defines measured parameters, not guarantees that arbitrary buildings have small interfaces. Private competing alternatives can have arbitrarily many actions while $h=1$. The bridge family in Fig.~\ref{fig:unit} has genuine within-unit owner competition: for $t$ owners, $(p,r,z,L)=(1,1,2,4)$, $g=t+1$, $h=t$.
@@ -324,6 +328,7 @@ The rank reference was inspected in accepted-manuscript Section 3.6, Definitions
 
 The Duplex source SHA256 is \texttt{b347a2c8aa8fff6db896a4417a9c50c22} \texttt{ac0ccd7c5cfc22b99b8d29336c606ed}. Attribution: BSI (2020), ``Duplex Apartment Test Files,'' buildingSMART International, CC BY 4.0. Changes: mesh projection, explicit subsets, conservative stair obstacles and hypothetical profiles/reservations/templates/permissions/prices. This record accompanies redistributed derived evidence.
 
+\clearpage
 \begin{thebibliography}{00}
 \bibitem{bim} B. Strug and G. \'{S}lusarczyk, ``Reasoning about accessibility for disabled using building graph models based on BIM/IFC,'' \emph{Visualization in Engineering}, vol. 5, Art. no. 10, 2017, doi: 10.1186/s40327-017-0048-z.
 \bibitem{labels} R. Hassin, J. Monnot, and D. Segev, ``Approximation algorithms and hardness results for labeled connectivity problems,'' \emph{J. Combinatorial Optimization}, vol. 14, pp. 437--453, 2007, doi: 10.1007/s10878-007-9044-x.

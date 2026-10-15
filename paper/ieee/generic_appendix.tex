@@ -17,11 +17,11 @@ Formula length is fixed, radius one and threshold two. Profile count is encoded 
 \subsection{Supplied Expression and Nonnegative Weights}
 The event construction has $O(prL+zL+p+zLh)$ live objects. Give live objects singleton labels, introduce/join each fresh object only to its already live neighbors, and retire labels once no future relation is incident. Finished labels are never joined again. A constant number of retired type labels preserves unary signatures. This gives a polynomial-size linear clique-width expression of the stated label bound; it is a project construction used with the published weighted theorem.
 
-Sort $K$ original identifiers and scale rational costs to integers $C_i$ using a common denominator of polynomial bit length. For $i=1,\ldots,K$, define
+Sort $m$ original identifiers and scale rational costs to integers $\widehat c_i$ using a common denominator of polynomial bit length. For $i=1,\ldots,m$, define
 \begin{align}
-Q&=K2^K+1,\\
-w_i&=C_i(K+1)Q+Q+(2^K-2^{K-i}).
+Q&=m2^m+1,\\
+w_i&=\widehat c_i(m+1)Q+Q+(2^m-2^{m-i}).
 \end{align}
-The sum of last terms is below $Q$, so one count unit dominates lexical differences. The count-plus-lexical range is below $(K+1)Q$, so one cost unit dominates the remaining objective. At equal count, earlier identifier inclusion outweighs every later difference, matching sorted-ID lexical order. $K=0$ is trivial. Weight bit length is polynomial despite potentially large numeric magnitude.
+The sum of last terms is below $Q$, so one count unit dominates lexical differences. The count-plus-lexical range is below $(m+1)Q$, so one cost unit dominates the remaining objective. At equal count, earlier identifier inclusion outweighs every later difference, matching sorted-ID lexical order. $m=0$ is trivial. Weight bit length is polynomial despite potentially large numeric magnitude.
 
 Assign $w_i$ to Action $i$ when it is outside $X$ and zero when selected, with zero for other vertices. Maximizing the nonnegative membership reward $\sum_iw_i-\sum_{i\in X}w_i$ exactly minimizes the original label. This respects the source's allowed weighted membership patterns and gives \eqref{eq:generic}. The resource evaluator does not run that optimizer; its measured semantic agreement cannot be presented as optimizer runtime evidence. The displayed width/exponent is an upper bound and cannot rule out a tighter generic encoding.

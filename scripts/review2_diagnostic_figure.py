@@ -29,7 +29,7 @@ def diagnostic_figure(output):
     ax.set_title("(a) Supplied actions and access",fontsize=9)
     ax.text(1,-.48,"A={a,u}: 1; B={b}: 1; C={v}: 0.5; D={w}: 3\nA is disconnected. D is a separate R0-R1 escape lift.",ha="center",va="top",fontsize=7)
     ax=axes[0,1];purchase=(1,1.0)
-    ax.scatter(*purchase,s=120,marker="s",color=RED,zorder=3);ax.text(1,.7,"purchase A",ha="center",color=RED,fontsize=7)
+    ax.scatter(*purchase,s=120,marker="s",color=RED,zorder=3);ax.text(1.55,.65,"purchase A",ha="center",color=RED,fontsize=7)
     for name in("L0","L1","R1","R2"):
         x,y=pos[name];ax.plot([x,purchase[0]],[y,purchase[1]],"--",color=RED,lw=1)
     ax.set_title("(b) Incorrect purchase-vertex simplification",fontsize=9)
