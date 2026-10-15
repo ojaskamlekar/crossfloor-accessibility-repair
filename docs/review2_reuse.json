@@ -1,0 +1,10 @@
+{
+  "experiment_id": "review2-cell-local-reuse",
+  "seeds": [0],
+  "repetitions": 5,
+  "budget_seconds": 15,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "reuse", "cp-sat"],
+  "families": {}
+}

@@ -1,0 +1,287 @@
+"""Exact action-span sweep with cell-local owner last-use erasure.
+
+Established partition/rank machinery is reused. The additional structural
+argument replaces complete global unit span by individual action span and the
+measured overlap of per-cell owner lifetimes; this is not a priority claim.
+"""
+from collections import defaultdict
+from decimal import Decimal
+from itertools import product
+from time import perf_counter
+
+from .actions import apply_actions
+from .errors import require, ValidationError
+from .geometry import room_index
+from .interface_recognition import recognize_physical_interface
+from .objective import exact_sum
+from .obligations import verify_obligations
+from .representative_partitions import representative_indices
+from .validation import baseline_active
+
+
+from .dp_owned_interface import _glue, _components
+
+
+def recognize_reuse_lifetime(instance, *, prune_irrelevant=False):
+    recognized = recognize_physical_interface(instance, prune_irrelevant=prune_irrelevant)
+    started = perf_counter()
+    rooms = room_index(instance)
+    ranks = {fid:i for i,fid in enumerate(recognized["floor_order"])}
+    room_floor = {rid:floor["floor_id"] for rid,(floor,_) in rooms.items()}
+    catalog = {c["connection_id"]:c for c in instance["connections"]}
+    units=[]
+    for action in instance["actions"]:
+        aid=action["action_id"]
+        if aid not in recognized["action_cells"]:continue
+        touched=set()
+        for effect in action["effects"]:
+            c=catalog[effect["connection_id"]]
+            touched.update(room_floor[r] for r in (c["u"],c["v"]))
+            touched.update(room_floor[r["room_id"]] for r in c["geometry"]["footprints"])
+        indices=[ranks[f] for f in touched]
+        units.append(dict(action_ids=[aid],first_floor=min(indices),last_floor=max(indices),span=max(indices)-min(indices)+1))
+    units.sort(key=lambda u:(u["first_floor"],u["action_ids"]))
+    occurrences=defaultdict(list)
+    for index,unit in enumerate(units):
+        for cell,owner in recognized["action_cells"][unit["action_ids"][0]].items():
+            occurrences[(cell,owner)].append(index)
+    deltas=defaultdict(lambda:defaultdict(int))
+    for (cell,owner),events in occurrences.items():
+        deltas[cell][min(events)]+=1
+        deltas[cell][max(events)+1]-=1
+    kappa=0
+    for events in deltas.values():
+        live=0
+        for event in sorted(events):
+            live+=events[event];kappa=max(kappa,live)
+    baseline_span=max([1]+[abs(ranks[room_floor[catalog[cid]["u"]]]-ranks[room_floor[catalog[cid]["v"]]])+1
+        for cid in baseline_active(instance)])
+    parameters=dict(recognized["parameters"])
+    parameters.update(L_unit=parameters["L"],L=max([baseline_span]+[u["span"]for u in units]),kappa=kappa)
+    recognized["parameters"]=parameters
+    recognized["complete_units"]=recognized["units"]
+    recognized["units"]=units
+    recognized["last_use"]={key:max(events)for key,events in occurrences.items()}
+    recognized["owner_lifetimes"]=[dict(cell=cell,owner=owner,first=min(events),last=max(events))
+        for (cell,owner),events in sorted(occurrences.items())]
+    elapsed=perf_counter()-started
+    recognized["timings"]["owner_lifetime_construction_seconds"]=elapsed
+    recognized["timings"]["recognition_seconds"]+=elapsed
+    recognized["scope"]+="; action-span / cell-local owner lifetime sweep"
+    return recognized
+
+
+def solve_reuse_lifetime(instance: dict, *, compress: bool = True,
+                          max_states: int = 100000, max_cut_columns: int = 65536,
+                          prune_irrelevant: bool = False, event_order: str = "canonical") -> dict:
+    require(type(max_states) is int and max_states > 0 and type(max_cut_columns) is int
+            and max_cut_columns > 0, "INTERFACE_LIMIT", "positive integer limits required")
+    require(event_order == "canonical","INTERFACE_ORDER","lifetime schedule currently requires canonical order")
+    recognized = recognize_reuse_lifetime(instance, prune_irrelevant=prune_irrelevant)
+    optimization_started = perf_counter()
+    pids = sorted(recognized["components"])
+    floors = recognized["floor_order"]
+    ranks = {fid: i for i, fid in enumerate(floors)}
+    rooms = room_index(instance)
+    room_floor = {rid: f["floor_id"] for rid, (f, _) in rooms.items()}
+    node = lambda pid, rid: "v:" + recognized["components"][pid][rid]
+    node_floor = [{node(pid,rid): room_floor[rid] for rid in recognized["components"][pid]} for pid in pids]
+    targets = [{node(pid,o["target"]) for o in instance["obligations"] if o["profile_id"] == pid}
+               for pid in pids]
+    roots = [node(pid,recognized["anchors"][pid]) for pid in pids]
+    cells = {c["cell_id"]: c for c in recognized["cells"]}
+    actions = {a["action_id"]: a for a in instance["actions"]}
+    catalog = {c["connection_id"]: c for c in instance["connections"]}
+    units = defaultdict(list)
+    for unit in recognized["units"]:
+        units[unit["first_floor"]].append(unit)
+    baseline_events = defaultdict(list)
+    for cid, permitted in baseline_active(instance).items():
+        c = catalog[cid]
+        for q, pid in enumerate(pids):
+            if pid in permitted:
+                if c["u"] not in recognized["components"][pid]:
+                    continue
+                u, v = node(pid,c["u"]), node(pid,c["v"])
+                if u != v:
+                    baseline_events[min(ranks[room_floor[c["u"]]], ranks[room_floor[c["v"]]])].append((q,u,v))
+    effect_components = {}
+    for aid in recognized["action_cells"]:
+        layers = []
+        for pid in pids:
+            edges = []
+            for effect in actions[aid]["effects"]:
+                if pid in effect["permitted_profiles"]:
+                    c = catalog[effect["connection_id"]]
+                    edges.append((node(pid,c["u"]), node(pid,c["v"])))
+            layers.append(_components(edges))
+        effect_components[aid] = layers
+    # Label order is exact cost, original count, then sorted original IDs.
+    states = {((), tuple((("anchor",),) for _ in pids)): (Decimal(0),0,())}
+    stats = dict(events=0, peak_raw_states=1, peak_retained_states=1, representative_rows_removed=0,
+                 generated_rows=0, deduplicated_rows=0, retained_rows=0,
+                 representative_seconds=0.0, max_group_rows=0, max_cut_columns=0)
+    events_built_at = perf_counter()
+
+    def cap_error(code, detail, observed=None):
+        error = ValidationError(code, detail)
+        error.statistics = dict(stats)
+        if observed is not None:
+            error.statistics["peak_raw_states"] = max(stats["peak_raw_states"],observed)
+        error.timings = dict(recognized["timings"], event_construction_seconds=events_built_at-optimization_started,
+                             optimization_seconds=perf_counter()-events_built_at,replay_seconds=None)
+        raise error
+
+    def retain(generated):
+        nonlocal states
+        deduplicated = {}
+        for key, label in generated:
+            stats["generated_rows"] += 1
+            if key not in deduplicated or label < deduplicated[key]:
+                deduplicated[key] = label
+            if len(deduplicated)>max_states:
+                cap_error("INTERFACE_STATE_LIMIT",str(max_states),len(deduplicated))
+        stats["events"] += 1
+        stats["deduplicated_rows"] += len(deduplicated)
+        stats["peak_raw_states"] = max(stats["peak_raw_states"], len(deduplicated))
+        if not compress:
+            states = deduplicated
+        else:
+            groups = defaultdict(list)
+            for key, label in deduplicated.items():
+                occupancy, partitions = key
+                boundary = tuple(tuple(sorted(v for block in pi for v in block if v != "anchor"))
+                                 for pi in partitions)
+                groups[(occupancy,boundary)].append((key,label))
+            states = {}
+            reduction_started = perf_counter()
+            for (_, boundary), records in groups.items():
+                columns = 1 << sum(len(vs) for vs in boundary)
+                stats["max_group_rows"] = max(stats["max_group_rows"],len(records))
+                stats["max_cut_columns"] = max(stats["max_cut_columns"],columns)
+                if columns>max_cut_columns:cap_error("INTERFACE_CUT_LIMIT",str(columns))
+                rows = []
+                for (_, partitions), _label in records:
+                    tuple_row = []
+                    for pi, vs in zip(partitions,boundary):
+                        blocks = {v: b for b, block in enumerate(pi) for v in block}
+                        tuple_row.append(tuple(blocks[v] for v in ("anchor",)+vs))
+                    rows.append(tuple(tuple_row))
+                kept = representative_indices(rows, [label for _,label in records])
+                stats["representative_rows_removed"] += len(records)-len(kept)
+                for index in kept:
+                    key, label = records[index]
+                    states[key] = label
+            stats["representative_seconds"] += perf_counter()-reduction_started
+        stats["retained_rows"] += len(states)
+        stats["peak_retained_states"] = max(stats["peak_retained_states"], len(states))
+
+    def introduce(fid):
+        def generated():
+            for (occupancy, partitions), label in states.items():
+                updated = list(partitions)
+                for q in range(len(pids)):
+                    for vertex in sorted(targets[q]):
+                        if node_floor[q][vertex] == fid:
+                            updated[q] = _glue(updated[q], (vertex,))
+                    if node_floor[q][roots[q]] == fid:
+                        updated[q] = _glue(updated[q], ("anchor",roots[q]))
+                yield (occupancy,tuple(updated)), label
+        retain(generated())
+
+    L = recognized["parameters"]["L"]
+    for fid in floors[:L]:
+        introduce(fid)
+    action_event = 0
+    for f, fid in enumerate(floors):
+        for q, u, v in (baseline_events[f] if event_order=="canonical" else reversed(baseline_events[f])):
+            def baseline_generated():
+                for (occupancy, partitions), label in states.items():
+                    yield (occupancy,partitions), label
+                    updated = list(partitions)
+                    updated[q] = _glue(updated[q], (u,v))
+                    yield (occupancy,tuple(updated)), label
+            retain(baseline_generated())
+        for unit in (units[f] if event_order=="canonical" else reversed(units[f])):
+            for aid in (unit["action_ids"] if event_order=="canonical" else reversed(unit["action_ids"])):
+                action = actions[aid]
+                layer_choices = [[tuple(component for i,component in enumerate(layer) if mask & (1 << i))
+                                  for mask in range(1 << len(layer))] for layer in effect_components[aid]]
+
+                def action_generated():
+                    for (occupancy, partitions), label in states.items():
+                        yield (occupancy,partitions), label
+                        occupied = dict(occupancy)
+                        valid = True
+                        for cid, owner in recognized["action_cells"][aid].items():
+                            token = "owner:"+owner
+                            if cid in occupied and occupied[cid] != token:
+                                valid = False
+                                break
+                            occupied[cid] = token
+                        if not valid:
+                            continue
+                        new_label = (exact_sum([label[0],Decimal(str(action["cost"]))]), label[1]+1,
+                                     tuple(sorted(label[2]+(aid,))))
+                        for witness in product(*layer_choices):
+                            updated = list(partitions)
+                            for q, selected in enumerate(witness):
+                                for component in selected:
+                                    updated[q] = _glue(updated[q], component)
+                            yield (tuple(sorted(occupied.items())),tuple(updated)), new_label
+                retain(action_generated())
+            # Cell-local last use, not completion of a global owner unit.
+            # An owner can become external only when no future action can use
+            # that same (owner,cell). Full paid occupancy is never deleted.
+            def expire_owner_names():
+                for (occupancy,partitions),label in states.items():
+                    live=[]
+                    for cid,token in occupancy:
+                        if token.startswith("owner:") and recognized["last_use"][(cid,token[6:])] <= action_event:
+                            token="external"
+                        live.append((cid,token))
+                    yield (tuple(live),partitions),label
+            retain(expire_owner_names())
+            action_event += 1
+        def forget_generated():
+            for (occupancy, partitions), label in states.items():
+                updated = []
+                valid = True
+                for q, pi in enumerate(partitions):
+                    layer = []
+                    for block in pi:
+                        remaining = tuple(v for v in block if v == "anchor" or node_floor[q][v] != fid)
+                        if not remaining:
+                            valid = False
+                            break
+                        layer.append(remaining)
+                    if not valid:
+                        break
+                    updated.append(tuple(sorted(layer)))
+                if valid:
+                    live = tuple((cid,owner) for cid,owner in occupancy if cells[cid]["floor_id"] != fid)
+                    yield (live,tuple(updated)), label
+        retain(forget_generated())
+        if f+L < len(floors):
+            introduce(floors[f+L])
+    best = min(states.values(), default=None)
+    optimization_finished = perf_counter()
+    result = dict(method="owned_cell_reuse_lifetime_dp_v1", status="optimal" if best else "infeasible",
+                  variant="SCFAR", cost=str(best[0]) if best else None,
+                  selected=list(best[2]) if best else None, parameters=recognized["parameters"],
+                  input_fingerprint=recognized["input_fingerprint"], statistics=stats,
+                  compression=compress,
+                  optimality_evidence="complete scoped DP; independent oracle comparison required",
+                  scope=recognized["scope"])
+    result["timings"] = dict(recognized["timings"], event_construction_seconds=events_built_at-optimization_started,
+                            optimization_seconds=optimization_finished-events_built_at,
+                            replay_seconds=None)
+    result["recognition_counters"] = recognized["counters"]
+    if best:
+        replay_started = perf_counter()
+        repair = apply_actions(instance, result["selected"])
+        verification = verify_obligations(repair["instance"],repair["active"])
+        require(verification["satisfied"], "INTERFACE_INTERNAL_REPLAY", "witness failed materialization")
+        result.update(reachability=verification, geometry=repair["geometry"], adjacency=repair["adjacency"])
+        result["timings"]["replay_seconds"] = perf_counter()-replay_started
+    return result

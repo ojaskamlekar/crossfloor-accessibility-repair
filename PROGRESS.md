@@ -315,3 +315,16 @@ not authenticated IFC doors. Pilot/smoke results are excluded from the paper;
 clean pinned repetitions and source-aligned manuscript rendering are next.
 The supported claim is a precise physical/interface transfer; broad priority
 and independent proof review remain open. No submission-readiness claim.
+
+
+## Cell-local reuse refinement (15 October 2026)
+
+The proof audit identifies avoidable whole-shaft coupling in the complete-unit
+sweep. `reuse_lifetime.py` instead orders full actions by first support floor,
+retains owner identities until the last available use of each owner/cell, and
+then preserves external occupancy. The scoped project argument in
+`docs/cell_local_reuse_bound.md` replaces global unit span by action/baseline
+span L_a and measured owner-interval overlap kappa. Thirty focused tests pass,
+including the full-action oracle corpus, seeded catalogues and a 33-floor
+analytical chain with L_unit=33, L_a=2, kappa=1. No independent proof approval or
+literature-priority claim follows. Pinned five-repeat comparisons are next.

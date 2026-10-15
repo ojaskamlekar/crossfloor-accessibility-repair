@@ -30,13 +30,15 @@ def worker(source,method,target,budget,cap,columns,seed):
     from cfar.actions import apply_actions
     from cfar.obligations import verify_obligations
     from cfar.independent_selection import check_selection
+    from cfar.reuse_lifetime import solve_reuse_lifetime
     from cfar.geometry import geometry_memoization,clear_geometry_caches,geometry_cache_info
     instance=json.loads(Path(source).read_text())
     clear_geometry_caches()
     cache_context=geometry_memoization(method!="uncached");cache_context.__enter__()
     print("READY",flush=True);started=perf_counter()
     try:
-        if method=="cp-sat":result=solve_cp_sat(instance,time_limit=float(budget),seed=int(seed))
+        if method=="reuse":result=solve_reuse_lifetime(instance,max_states=int(cap),max_cut_columns=int(columns))
+        elif method=="cp-sat":result=solve_cp_sat(instance,time_limit=float(budget),seed=int(seed))
         elif method=="greedy":result=solve_greedy(instance)
         elif method=="greedy-exchange":result=improve_greedy(instance,exchange_budget=256)
         elif method=="oracle":result=exact_oracle(instance,max_actions=8)
@@ -105,6 +107,7 @@ def normalized(payload,meta,method,repeat,config,description,commit):
             max_cut_columns=config["max_cut_columns"],cp_sat_workers=1,exchange_candidates=256),
         repeat_index=repeat,status=payload["status"],objective_cost=result.get("cost")or incumbent.get("cost"),
         objective_action_count=len(selected)if selected is not None else None,selected_action_ids=selected,
+        solver_parameters=result.get("parameters"),
         best_bound=result.get("best_bound"),bound_precision=result.get("bound_precision"),relative_cost_gap=result.get("relative_cost_gap"),
         end_to_end_seconds=payload.get("end_to_end_seconds"),recognition_seconds=timings.get("recognition_seconds"),
         optimization_seconds=timings.get("optimization_seconds"),replay_seconds=timings.get("replay_seconds"),
