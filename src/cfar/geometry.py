@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from itertools import combinations
 from typing import Any
+from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import lru_cache
 
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
@@ -11,9 +14,10 @@ from .errors import require
 from .schema import Instance
 
 EPS = 1e-8
+_MEMOIZE = ContextVar("geometry_memoize", default=True)
 
 
-def polygon(points: list) -> Polygon:
+def _polygon(points) -> Polygon:
     shape = Polygon(points)
     require(shape.is_valid and shape.area > EPS, "POLYGON", "invalid or empty polygon")
     coords = list(shape.exterior.coords)
@@ -21,6 +25,42 @@ def polygon(points: list) -> Polygon:
                 for (x1, y1), (x2, y2) in zip(coords, coords[1:])),
             "ORTHOGONAL", "polygon edges must be axis aligned")
     return shape
+
+
+_cached_polygon = lru_cache(maxsize=8192)(_polygon)
+
+
+def polygon(points: list) -> Polygon:
+    frozen = tuple(tuple(p) for p in points)
+    return _cached_polygon(frozen) if _MEMOIZE.get() else _polygon(frozen)
+
+
+def _centre_space(points, obstacles, radius):
+    interior = polygon(points).buffer(-radius, join_style=2)
+    blocked = unary_union([polygon(o).buffer(radius, join_style=2) for o in obstacles])
+    return interior.difference(blocked)
+
+
+_cached_centre_space = lru_cache(maxsize=2048)(_centre_space)
+
+
+@contextmanager
+def geometry_memoization(enabled):
+    """Only pure immutable polygons/free-space are cached, never validity results."""
+    token = _MEMOIZE.set(bool(enabled))
+    try:
+        yield
+    finally:
+        _MEMOIZE.reset(token)
+
+
+def geometry_cache_info():
+    return dict(polygon=_cached_polygon.cache_info()._asdict(), centre_space=_cached_centre_space.cache_info()._asdict())
+
+
+def clear_geometry_caches():
+    _cached_polygon.cache_clear()
+    _cached_centre_space.cache_clear()
 
 
 def room_index(instance: Instance) -> dict[str, tuple[dict, dict]]:
@@ -134,7 +174,7 @@ def connector_feasible(instance: Instance, connection: dict, profiles: list[str]
     return connection_feasible(instance, connection, profiles)
 
 
-def joint_geometry(instance: Instance, active: dict[str, list[str]]) -> dict[str, dict]:
+def joint_geometry(instance: Instance, active: dict[str, list[str]], *, metrics=None) -> dict[str, dict]:
     catalog = {c["connection_id"]: c for c in instance["connections"]}
     checks = {cid: connection_feasible(instance, catalog[cid], ps) for cid, ps in sorted(active.items())}
     for (aid, a), (bid, b) in combinations(checks.items(), 2):
@@ -153,6 +193,8 @@ def joint_geometry(instance: Instance, active: dict[str, list[str]]) -> dict[str
                                   and polygon(x["polygon"]).equals(polygon(y["polygon"])))
                     if same_asset:
                         continue
+                    if metrics is not None:
+                        metrics["portal_footprint_intersection_tests"] = metrics.get("portal_footprint_intersection_tests",0)+1
                     require(polygon(x["polygon"]).intersection(polygon(y["polygon"])).area <= EPS,
                             "PORTAL_COLLISION", f"{aid}/{bid}")
     # Room nodes abstract continuous motion only when the required profile's free centre-space is connected.
@@ -170,9 +212,10 @@ def joint_geometry(instance: Instance, active: dict[str, list[str]]) -> dict[str
         floor, room = rooms[rid]
         for pid in sorted(ps):
             radius = specifications[pid]["min_width_m"]/2
-            interior = polygon(room["polygon"]).buffer(-radius,join_style=2)
-            blocked = unary_union([polygon(o).buffer(radius,join_style=2) for o in floor["obstacles"]])
-            free = interior.difference(blocked)
+            points = tuple(tuple(p) for p in room["polygon"])
+            obstacles = tuple(tuple(tuple(p) for p in o) for o in floor["obstacles"])
+            free = (_cached_centre_space(points,obstacles,radius) if _MEMOIZE.get()
+                    else _centre_space(points,obstacles,radius))
             require(free.geom_type == "Polygon" and free.area > EPS,
                     "ROOM_PROFILE_CONNECTIVITY", f"{rid}/{pid}")
             for cid, permitted in active.items():

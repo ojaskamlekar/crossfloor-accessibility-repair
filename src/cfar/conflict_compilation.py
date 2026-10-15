@@ -23,6 +23,7 @@ def compile_activation_constraints(instance: dict, max_actions: int = 100) -> di
     checks = 0
     requests = 0
     cache = {}
+    metrics = {"portal_footprint_intersection_tests":0}
 
     def test(selected):
         nonlocal checks, requests
@@ -37,7 +38,7 @@ def compile_activation_constraints(instance: dict, max_actions: int = 100) -> di
             return cache[signature]
         checks += 1
         try:
-            joint_geometry(instance, active)
+            joint_geometry(instance, active, metrics=metrics)
         except ValidationError as error:
             cache[signature] = {"code": error.code, "detail": str(error)}
         else:
@@ -63,6 +64,7 @@ def compile_activation_constraints(instance: dict, max_actions: int = 100) -> di
             "requires": {a["action_id"]: sorted(a["requires"]) for a in actions},
             "excludes": [list(pair) for pair in exclusions], "geometry_calls_after_validation": checks,
             "geometry_requests": requests, "geometry_cache_hits": requests-checks,
+            "geometry_metrics": metrics,
             "scope": "reserved_interfaces_2d_v1 fixed-room strict activations; reachability not evaluated"}
 
 

@@ -1,0 +1,10 @@
+{
+  "experiment_id": "review2-algorithm-ablations",
+  "seeds": [0, 1, 2],
+  "repetitions": 5,
+  "budget_seconds": 15,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "pruned", "reverse", "uncached"],
+  "families": {"pruning": [10], "compression": [5]}
+}

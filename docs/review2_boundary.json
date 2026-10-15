@@ -1,0 +1,10 @@
+{
+  "experiment_id": "review2-declared-boundary",
+  "seeds": [0, 1, 2],
+  "repetitions": 3,
+  "budget_seconds": 15,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "cp-sat", "greedy-exchange"],
+  "families": {"connectivity": [17], "profiles": [9, 17], "ownership": [16], "compression": [7]}
+}

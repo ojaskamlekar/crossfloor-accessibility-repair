@@ -5,9 +5,10 @@ Working M09/M14 implementation; rank machinery is established prior work.
 from collections import defaultdict
 from decimal import Decimal
 from itertools import product
+from time import perf_counter
 
 from .actions import apply_actions
-from .errors import require
+from .errors import require, ValidationError
 from .geometry import room_index
 from .interface_recognition import recognize_physical_interface
 from .objective import exact_sum
@@ -37,10 +38,12 @@ def _components(edges):
 
 def solve_owned_interface(instance: dict, *, compress: bool = True,
                           max_states: int = 100000, max_cut_columns: int = 65536,
-                          prune_irrelevant: bool = False) -> dict:
+                          prune_irrelevant: bool = False, event_order: str = "canonical") -> dict:
     require(type(max_states) is int and max_states > 0 and type(max_cut_columns) is int
             and max_cut_columns > 0, "INTERFACE_LIMIT", "positive integer limits required")
+    require(event_order in {"canonical","reverse"},"INTERFACE_ORDER","canonical or reverse event order required")
     recognized = recognize_physical_interface(instance, prune_irrelevant=prune_irrelevant)
+    optimization_started = perf_counter()
     pids = sorted(recognized["components"])
     floors = recognized["floor_order"]
     ranks = {fid: i for i, fid in enumerate(floors)}
@@ -80,16 +83,31 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
         effect_components[aid] = layers
     # Label order is exact cost, original count, then sorted original IDs.
     states = {((), tuple((("anchor",),) for _ in pids)): (Decimal(0),0,())}
-    stats = dict(events=0, peak_raw_states=1, peak_retained_states=1, representative_rows_removed=0)
+    stats = dict(events=0, peak_raw_states=1, peak_retained_states=1, representative_rows_removed=0,
+                 generated_rows=0, deduplicated_rows=0, retained_rows=0,
+                 representative_seconds=0.0, max_group_rows=0, max_cut_columns=0)
+    events_built_at = perf_counter()
+
+    def cap_error(code, detail, observed=None):
+        error = ValidationError(code, detail)
+        error.statistics = dict(stats)
+        if observed is not None:
+            error.statistics["peak_raw_states"] = max(stats["peak_raw_states"],observed)
+        error.timings = dict(recognized["timings"], event_construction_seconds=events_built_at-optimization_started,
+                             optimization_seconds=perf_counter()-events_built_at,replay_seconds=None)
+        raise error
 
     def retain(generated):
         nonlocal states
         deduplicated = {}
         for key, label in generated:
+            stats["generated_rows"] += 1
             if key not in deduplicated or label < deduplicated[key]:
                 deduplicated[key] = label
-            require(len(deduplicated) <= max_states, "INTERFACE_STATE_LIMIT", str(max_states))
+            if len(deduplicated)>max_states:
+                cap_error("INTERFACE_STATE_LIMIT",str(max_states),len(deduplicated))
         stats["events"] += 1
+        stats["deduplicated_rows"] += len(deduplicated)
         stats["peak_raw_states"] = max(stats["peak_raw_states"], len(deduplicated))
         if not compress:
             states = deduplicated
@@ -101,9 +119,12 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
                                  for pi in partitions)
                 groups[(occupancy,boundary)].append((key,label))
             states = {}
+            reduction_started = perf_counter()
             for (_, boundary), records in groups.items():
                 columns = 1 << sum(len(vs) for vs in boundary)
-                require(columns <= max_cut_columns, "INTERFACE_CUT_LIMIT", str(columns))
+                stats["max_group_rows"] = max(stats["max_group_rows"],len(records))
+                stats["max_cut_columns"] = max(stats["max_cut_columns"],columns)
+                if columns>max_cut_columns:cap_error("INTERFACE_CUT_LIMIT",str(columns))
                 rows = []
                 for (_, partitions), _label in records:
                     tuple_row = []
@@ -116,6 +137,8 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
                 for index in kept:
                     key, label = records[index]
                     states[key] = label
+            stats["representative_seconds"] += perf_counter()-reduction_started
+        stats["retained_rows"] += len(states)
         stats["peak_retained_states"] = max(stats["peak_retained_states"], len(states))
 
     def introduce(fid):
@@ -135,7 +158,7 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
     for fid in floors[:L]:
         introduce(fid)
     for f, fid in enumerate(floors):
-        for q, u, v in baseline_events[f]:
+        for q, u, v in (baseline_events[f] if event_order=="canonical" else reversed(baseline_events[f])):
             def baseline_generated():
                 for (occupancy, partitions), label in states.items():
                     yield (occupancy,partitions), label
@@ -143,8 +166,8 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
                     updated[q] = _glue(updated[q], (u,v))
                     yield (occupancy,tuple(updated)), label
             retain(baseline_generated())
-        for unit in units[f]:
-            for aid in unit["action_ids"]:
+        for unit in (units[f] if event_order=="canonical" else reversed(units[f])):
+            for aid in (unit["action_ids"] if event_order=="canonical" else reversed(unit["action_ids"])):
                 action = actions[aid]
                 layer_choices = [[tuple(component for i,component in enumerate(layer) if mask & (1 << i))
                                   for mask in range(1 << len(layer))] for layer in effect_components[aid]]
@@ -195,6 +218,7 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
         if f+L < len(floors):
             introduce(floors[f+L])
     best = min(states.values(), default=None)
+    optimization_finished = perf_counter()
     result = dict(method="owned_cell_rooted_interface_dp_v1", status="optimal" if best else "infeasible",
                   variant="SCFAR", cost=str(best[0]) if best else None,
                   selected=list(best[2]) if best else None, parameters=recognized["parameters"],
@@ -202,9 +226,15 @@ def solve_owned_interface(instance: dict, *, compress: bool = True,
                   compression=compress,
                   optimality_evidence="complete scoped DP; independent oracle comparison required",
                   scope=recognized["scope"])
+    result["timings"] = dict(recognized["timings"], event_construction_seconds=events_built_at-optimization_started,
+                            optimization_seconds=optimization_finished-events_built_at,
+                            replay_seconds=None)
+    result["recognition_counters"] = recognized["counters"]
     if best:
+        replay_started = perf_counter()
         repair = apply_actions(instance, result["selected"])
         verification = verify_obligations(repair["instance"],repair["active"])
         require(verification["satisfied"], "INTERFACE_INTERNAL_REPLAY", "witness failed materialization")
         result.update(reachability=verification, geometry=repair["geometry"], adjacency=repair["adjacency"])
+        result["timings"]["replay_seconds"] = perf_counter()-replay_started
     return result

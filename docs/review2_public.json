@@ -1,0 +1,10 @@
+{
+  "experiment_id": "review2-multiroom-public-controlled",
+  "seeds": [0],
+  "repetitions": 3,
+  "budget_seconds": 30,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "cp-sat", "greedy-exchange", "uncached"],
+  "families": {}
+}

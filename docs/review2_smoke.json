@@ -1,0 +1,10 @@
+{
+  "experiment_id": "review2-smoke",
+  "seeds": [0],
+  "repetitions": 1,
+  "budget_seconds": 10,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "cp-sat", "greedy-exchange"],
+  "families": {"connectivity": [2], "ownership": [2], "compression": [3]}
+}

@@ -39,7 +39,7 @@ def table(caption,label,headers,rows,wide=False):
     return '\n'.join(lines)
 
 
-def build(controlled,building,demo,controls,figures,output,optimizers,public_audit,public_results):
+def build(controlled,building,demo,controls,figures,output,optimizers,public_audit,public_results,review2=None):
     output.mkdir(parents=True,exist_ok=True)
     if any(output.iterdir()):raise ValueError('fresh empty output required')
     for root in (controlled,building):
@@ -74,7 +74,12 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
     proof=original[original.index(r'\begin{lemma}[Ownership locality]'):original.index(r'\section{Experimental protocol}')]
     proof=re.sub(r'\\begin\{theorem\}.*?\\end\{theorem\}',r'\\subsection{Completeness, Soundness and Bit Complexity}',proof,flags=re.S)
     generic=(root/'paper/ieee/generic_appendix.tex').read_text()
-    text=template.read_text().replace('@@PROOF_APPENDIX@@',proof).replace('@@GENERIC_APPENDIX@@',generic).replace('@@PARAMETER_TABLE@@',parameter_table).replace('@@SCALING_TABLE@@',scaling_table).replace('@@CONTROL_TABLE@@',control_table).replace('@@BUILDING_TABLE@@',building_table).replace('@@OPTIMIZATION_TABLE@@',optimizer_table).replace('@@PUBLIC_BUILDING_SECTION@@',public_text)
+    text=template.read_text().replace('@@PROCEDURE_APPENDIX@@',(root/'paper/ieee/procedure_appendix.tex').read_text()).replace('@@PROOF_APPENDIX@@',proof).replace('@@GENERIC_APPENDIX@@',generic).replace('@@PARAMETER_TABLE@@',parameter_table).replace('@@SCALING_TABLE@@',scaling_table).replace('@@CONTROL_TABLE@@',control_table).replace('@@BUILDING_TABLE@@',building_table).replace('@@OPTIMIZATION_TABLE@@',optimizer_table).replace('@@PUBLIC_BUILDING_SECTION@@',public_text)
+    if review2:
+        from summarize_review2 import paper_section
+        text=text.replace('@@REVIEW2_SECTION@@',paper_section(review2))
+    else:
+        text=text.replace('@@REVIEW2_SECTION@@','')
     experimental_revision = json.loads((controlled/'protocol.json').read_text())['git_revision']
     optimizer_revision = json.loads((optimizers/'protocol.json').read_text())['git_revision']
     text=text.replace('@@EXPERIMENTAL_REVISION@@',experimental_revision[:7]).replace('@@OPTIMIZER_REVISION@@',optimizer_revision[:7])
@@ -85,12 +90,15 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
     (output/'master.tex').write_text(text,encoding='utf-8')
     shutil.copy2(root/'paper/ieee/IEEEtran.cls',output/'IEEEtran.cls')
     shutil.copytree(figures,output/'figures')
+    if review2:
+        for file in review2.glob('*.pdf'):shutil.copy2(file,output/'figures'/file.name)
     figure_manifest=json.loads((figures/'figure-provenance.json').read_text())
     for name,digest in figure_manifest['outputs'].items():
         if hashlib.sha256((figures/name).read_bytes()).hexdigest()!=digest:raise ValueError('figure hash mismatch')
     sources=[p for path in (controlled,building,demo,controls,optimizers,public_audit,public_results) for p in path.rglob('*.json')]
-    sources += [template,root/'paper/ieee/generic_appendix.tex',root/'paper/manuscript.template.tex',root/'paper/ieee/IEEEtran.cls',Path(__file__),root/'scripts/review_evidence.py']
-    write_json(output/'master-provenance.json',dict(abstract_words=len(abstract.split()),figure_count=len(figure_manifest['outputs']),
+    if review2:sources += list(review2.glob('*'))
+    sources += [root/'paper/ieee/procedure_appendix.tex',template,root/'paper/ieee/generic_appendix.tex',root/'paper/manuscript.template.tex',root/'paper/ieee/IEEEtran.cls',Path(__file__),root/'scripts/review_evidence.py']
+    write_json(output/'master-provenance.json',dict(abstract_words=len(abstract.split()),figure_count=len(list((output/'figures').glob('*.pdf'))),
         source_hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
         experimental_revision=experimental_revision,optimizer_revision=optimizer_revision,
         optimizer_audit=optimizer_audit,public_summary=public_summary,
@@ -102,4 +110,5 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ('controlled','building','demo','controls','figures','output','optimizers','public-audit','public-results'):parser.add_argument('--'+name,type=Path,required=True)
-    args=parser.parse_args();build(args.controlled,args.building,args.demo,args.controls,args.figures,args.output,args.optimizers,args.public_audit,args.public_results)
+    parser.add_argument('--review2',type=Path)
+    args=parser.parse_args();build(args.controlled,args.building,args.demo,args.controls,args.figures,args.output,args.optimizers,args.public_audit,args.public_results,args.review2)

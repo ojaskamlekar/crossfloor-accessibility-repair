@@ -22,7 +22,7 @@ accessibility repair, shared physical assets, exact optimization, parameterized 
 \end{IEEEkeywords}
 
 \section{Introduction}
-Building information models distinguish physical space, openings and connectivity \cite{bim,ava}; automated compliance checking also requires explicit, computable requirements \cite{amor}. A repair decision requires more than finding a missing graph edge. A shared wall need not admit traversal; an existing connector need not have permission for every accessibility profile. A proposed installation can affect multiple floors and destinations for one price, overlap another installation, or share a physical facility with a compatible action. These distinctions matter when room topology is frozen rather than regenerated.
+Building information models distinguish physical space, openings and connectivity \cite{bim,ava}; automated compliance checking also requires explicit, computable requirements \cite{amor}. A repair decision requires more than finding a missing graph edge. A shared wall need not admit traversal; an existing connector need not have permission for every accessibility profile. A proposed installation can affect multiple floors and destinations for one price, overlap another installation, or share a physical facility with a compatible action. These distinctions matter when room topology is frozen rather than regenerated. Here topology-preserving means that room identities, polygons and the shared-boundary adjacency graph remain exactly equal to their input values. Traversable profile access is a separate graph and may change. Candidates are supplied fixed templates, not automatically inferred construction proposals; exactness refers to the least feasible original cost/count/identifier label in that finite model.
 
 Consider Fig.~\ref{fig:demo}: two profiles need to reach two upstairs destinations. A baseline lift reaches circulation room C for both profiles, while an existing door connects C to T0 for only profile zero. Only one of four obligations initially holds. One original action purchases two new lift effects for three abstract cost units, enabling every obligation without changing room adjacency. Separate effects cost four. A graph-only cheapest repair need not be physically compatible, and independently pricing effects changes the optimization problem.
 
@@ -31,6 +31,16 @@ Consider Fig.~\ref{fig:demo}: two profiles need to reach two upstairs destinatio
 \caption{Authored motivating case, shown schematically from saved inputs and route results. S is the source; C, T0 and T1 are upstairs rooms. Gray edges are baseline access, with the door restricted to profile zero. Green edges are the full lift effects purchased by action A. Before/after counts are separately replayed in the small oracle certificate. Room geometry and adjacency remain fixed.}
 \label{fig:demo}
 \end{figure*}
+
+\subsection{A Complete Accounting Example}
+Figure~\ref{fig:complete-diagnostic} makes the difficulty explicit. Three floors each contain rooms L and R. Baseline doors admit both profiles except the middle door, which admits only profile zero. Each profile must reach L1 and R2 from L0. Original action A costs one and supplies disconnected edges a=L0--L1 and u=R1--R2. B costs one and supplies b=L1--L2 using the same left asset as a. C costs one half and supplies R0--R1 through a different owner overlapping u's paid middle-floor footprint; D is a disjoint cost-three escape on R0--R1.
+
+A purchase vertex connected to all endpoints of A falsely reports cost one: it invents a profile-one route from L0 to R2. Correct optimization selects A+B for cost two. A's edge u may be omitted from the profile-one witness L0--L1--L2--R2, yet its complete paid footprint stays occupied and excludes C. Before B, the live state retains left and right owner identities, the mandatory R2 block, the anchored L0/L1 block, and label (1,1,(A)). B reuses the left asset consistently. This example has hand-derived optimum two, a direct false-shortcut check and an independent rectangle-occupancy check.
+
+\begin{figure*}[t]
+\centering\includegraphics[width=.96\textwidth]{figures/complete_diagnostic.pdf}
+\caption{Complete authored accounting example. Solid gray doors admit both profiles; the dotted middle door admits only profile zero. Candidate locations, prices and schematic physical ownership are specified in the text. A+B is optimal; a naive purchase vertex yields a false path. Omitting u from a route witness does not free its paid footprint.}
+\label{fig:complete-diagnostic}\end{figure*}
 
 \subsection{Research Question and Contributions}
 We ask: \emph{Can exact rooted accessibility repair preserve complete physical actions and shared ownership while keeping exponential state dependence on a measured floor interface rather than raw catalogue identities?} The scope is precise: independent physical portal activations, rectangular fixed templates, nonnegative costs, separate rooted profile layers, and a reserved-interface two-dimensional kernel.
@@ -114,14 +124,16 @@ The bipartite incidence graph of available actions and owners defines complete c
 \begin{table}[t]
 \caption{Measured Interface Parameters}\label{tab:parameters}
 \centering\begin{tabular}{p{.09\columnwidth}p{.80\columnwidth}}
-\toprule Key & Definition \\\midrule
-$p$ & Accessibility profiles (separate layers).\\
-$r$ & Maximum retained baseline components per profile/floor.\\
-$z$ & Maximum collision cells per floor.\\
-$L$ & Maximum complete unit or active inter-floor baseline support span, in consecutive floors.\\
-$g$ & Maximum owners in one complete unit.\\
-$h$ & Maximum owners of one unit capable of occupying one cell.\\
-$B$ & Bit size of the represented discrete input.\\
+\toprule Key & Definition, measurement and runtime role \\\midrule
+$p$ & Supplied profile count; separates connectivity layers.\\
+$r$ & Computed maximum retained baseline components per profile/floor; bounds live positions.\\
+$z$ & Computed maximum collision cells per floor; bounds live resources.\\
+$L$ & Computed maximum complete-unit or baseline-edge support span in consecutive floors; controls look-ahead.\\
+$g$ & Computed maximum owners per unit; descriptive, absent from refined exponent.\\
+$h$ & Computed maximum owners of one unit able to occupy a cell; controls resource domain.\\
+$B$ & Supplied discrete input bit length, including costs and IDs; controls polynomial label work.\\
+$T_{rec}$ & Measured validation, geometry, cell, unit and component construction; additive preprocessing.\\
+$K,C$ & Supplied raw-state and cut-column caps; implementation limits, absent from the theorem.\\
 \bottomrule\end{tabular}\end{table}
 
 Table~\ref{tab:parameters} defines measured parameters, not guarantees that arbitrary buildings have small interfaces. Private competing alternatives can have arbitrarily many actions while $h=1$. The bridge family in Fig.~\ref{fig:unit} has genuine within-unit owner competition: for $t$ owners, $(p,r,z,L)=(1,1,2,4)$, $g=t+1$, $h=t$.
@@ -270,12 +282,12 @@ The central result preserves physical/action semantics under a compact owned int
 \subsection{Limits of Evidence}
 Correctness evidence is finite and the formal argument still needs independent review. Certificate graph/replay logic is separate, but schema/geometry are shared, so common geometry errors remain possible. Numerical recognition can reject small cells. Arbitrary demands, candidate doors, implications/exclusions, selection-dependent obstruction and independent-background metadata corrections are excluded. Large analytical inputs lack exhaustive optimum certificates.
 
-Only three local timing repetitions are available; ratios can reflect workstation variability. Compression helps little on this corpus and can fail its cut-column cap where full mode succeeds. Generators do not isolate every parameter independently. The historical Duplex subset and three admitted public-source subsets use hypothetical annotations and one room per selected floor. They cannot establish actual renovations, costs or full-building generality; two screened sources remain unsupported. The new hypothetical feasible reference is distinct from original-IFC restoration truth; no human accessibility study is supplied.
+The historical suite has only three local timing repetitions; ratios can reflect workstation variability. The additional protocol below separately identifies its repetition policy and code revision. Compression helps little on this corpus and can fail its cut-column cap where full mode succeeds. Generators do not isolate every parameter independently. The historical Duplex subset and three admitted public-source subsets use hypothetical annotations and one room per selected floor. They cannot establish actual renovations, costs or full-building generality; two screened sources remain unsupported. The new hypothetical feasible reference is distinct from original-IFC restoration truth; no human accessibility study is supplied. The additional multi-room experiment below is a separate extracted-subset study with hypothetical access annotations; it does not retroactively turn historical variants into independent buildings.
 
-Originality remains unresolved: labelled connectivity, rank-based methods and weighted logic cover important ingredients, and a tighter prior resource/connectivity formulation might match the owner dependence. We claim neither first-ever repair nor invention of weighted bases/tensoring, universal superiority, acceptance or a generic lower bound. IEEE formatting cannot remove this scientific uncertainty.
+The supported result is a semantics-preserving physical/interface transfer with the explicit bound in \eqref{eq:bound}. Weighted logic and the executed CP-SAT formulation can express the recognized problem. The displayed logarithmic owner term improves on one constructed linear-owner expression bound, not on every possible resource/connectivity algorithm. Literature priority for this transfer remains unconfirmed; rank bases, tensoring and shared-cost connectivity remain attributed prior methods.
 
 \section{Conclusion}
-We presented exact strict repair that keeps frozen room topology and complete original action accounting while compressing profile-specific route witnesses. Owned cells and complete units preserve reuse/collisions, and the conditional bound exposes a measured interface rather than raw identities. Controlled comparisons, explicit semantic failures and licensed building-derived experiments provide reproducible evidence with physical and operational limits intact. The supported contribution, provenance and limitations must survive future venue-specific shortening.
+We presented exact strict repair that keeps frozen room topology and complete original action accounting while compressing profile-specific route witnesses. Owned cells and complete units preserve reuse/collisions, and the conditional bound exposes a measured interface rather than raw identities. Controlled comparisons, explicit semantic failures and licensed building-derived experiments provide reproducible evidence with physical and operational limits intact. The representation, provenance and evidence boundaries define the scope of subsequent extensions.
 
 \section*{Acknowledgment and AI Disclosure}
 OpenAI Codex assisted in drafting all sections, adapting LaTeX, producing deterministic figure/analysis scripts and executing automated checks. Figures render saved data or explicitly labelled schematics. Generated text/code and the project proof require responsible author verification; no independent human theorem approval is asserted. No funding or author affiliation is inferred.
@@ -286,6 +298,8 @@ OpenAI Codex assisted in drafting all sections, adapting LaTeX, producing determ
 
 \section{Generic Encoding and Exact Objective Transfer}\label{app:generic}
 @@GENERIC_APPENDIX@@
+
+@@PROCEDURE_APPENDIX@@
 
 \section{Full Outcome Coverage and Reproducibility}\label{app:coverage}
 Fig.~\ref{fig:status} preserves all 37 authored cases. The first sample is displayed for readability; all three and settings remain in manifests. Compressed outcomes are 23 optimal, seven infeasible, five limit-exceeded and two unsupported. Oracle omission follows the frozen action/scope protocol; it is not a failed solve. Building variants have six optimal/two infeasible outcomes. No timeout or uncaught implementation error occurred in the retained core suite; external-optimizer statuses are audited separately.

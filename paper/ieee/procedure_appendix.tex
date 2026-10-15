@@ -1,0 +1,118 @@
+\section{Named Procedures, Invariant and Proof Dependencies}\label{app:procedures}
+The mathematical algorithm has no raw-state, cut-column or wall-clock cap.
+Implementation caps interrupt enumeration and must return an incomplete-search
+status. Floor order, collision cells, complete action--owner incidence units and
+the event schedule are constructed, not assumed to be supplied decompositions.
+Their cost belongs to $T_{rec}$. The geometry kernel uses metres, binary
+floating-point predicates and $\epsilon=10^{-8}$; post-recognition discrete
+optimization and decimal action labels are exact for that recognized contract.
+This is not an exact-rational computational-geometry theorem.
+
+\subsection{Invariant}
+After an event, each retained history represents a complete original-action
+prefix, every paid live footprint, mandatory introduced targets, and a separate
+optional rooted witness per profile. Partitions are the connectivity induced on
+selected live component positions and the permanent anchor after forgotten
+positions are eliminated. No forgotten non-anchor witness block has closed.
+The label is complete original cost, count and sorted IDs. Current-unit owners
+remain explicit; completed-unit occupancy remains external until its floor
+expires. Reduction preserves the least accepting label for every common future
+continuation, rather than every individual prefix history.
+
+\begin{lemma}[Recognition correspondence]\label{lem:r2-recognition}
+For the recognized fixed-template class, available action sets satisfy the
+kernel's unary/pairwise physical conditions exactly when their owned cells are
+compatible.
+\end{lemma}
+\begin{proof}
+Individually infeasible candidates are removed. Footprint boundary coordinates
+partition each floor into covered cells; an action reserves all cells of all
+its paid effect footprints. Same-owner occupancy shares a verified consistent
+rectangle, while different owners cannot occupy one positive-area cell. The
+recognizer explicitly checks agreement with compiled geometric action-pair
+conflicts and rejects mismatches or unsupported tiny cells. Room geometry and
+obstacles do not change with selection in this class.
+\end{proof}
+
+\begin{lemma}[Unit and floor forgetting]\label{lem:r2-forget}
+Owner names may be erased only after their complete unit; an expired floor may
+be forgotten only after its scheduled incident events and the non-anchor-block
+test.
+\end{lemma}
+\begin{proof}
+A future action reusing an owner would belong to the same incidence component,
+contradicting completion of that unit. Its cells therefore become externally
+occupied, not free. A unit beginning at floor $f$ has every effect endpoint and
+footprint in the $L$-floor window. Every baseline edge is likewise scheduled at
+its earliest endpoint. After the floor's incident events no future event can
+touch it. A disappearing non-anchor selected block can never reach its root
+later and is rejected; anchored connectivity is retained by the permanent root.
+\end{proof}
+
+\begin{lemma}[Stable full-action labels]\label{lem:r2-label}
+Identical-state dominance and the grouped weighted basis preserve the original
+cost/count/sorted-ID tie-break under a common continuation.
+\end{lemma}
+\begin{proof}
+Each original action is processed once, so future IDs are disjoint from prefix
+IDs. Costs and counts gain the same continuation contributions. If these tie,
+the first differing ID of equal-cardinality sorted sets is unchanged by inserting
+the same disjoint future set. Hence label order is continuation-stable. The
+weighted basis uses exactly that order and groups only equal occupancy and equal
+selected boundary sets; its product cut rows preserve joint profile completion
+as established in Appendix~\ref{app:proof}, using the attributed rank machinery.
+\end{proof}
+
+\begin{table*}[t]
+\caption{Complete Named Procedure Schedule and Safety Dependencies}\label{tab:procedures}
+\centering\footnotesize
+\begin{tabular}{p{.28\textwidth}p{.64\textwidth}}
+\toprule Procedure & Operation and justification \\\midrule
+\texttt{RecognizeStrictInstance} & Validate frozen rooms/baseline and complete templates; remove unary-blocked candidates; require exact cell/conflict correspondence (Lemma~\ref{lem:r2-recognition}).\\
+\texttt{BuildOwnedCollisionCells} & Arrange all available footprint x/y boundaries; reject unsupported tiny cells; map every original action to its actual owner/cells, including unused effects (Lemma~\ref{lem:r2-recognition}).\\
+\texttt{BuildActionAssetUnits} & Take components of the complete action--owner incidence graph; include all effect/footprint support floors (Lemma~\ref{lem:r2-forget}).\\
+\texttt{BuildFloorEventSchedule} & Construct sorted floor ranks, complete $L$ and earliest-support events; introduce the look-ahead window (Lemma~\ref{lem:r2-forget}).\\
+\texttt{IntroduceAction} & Emit skip; or charge the entire original label once and apply the following two updates (full-action/thin-witness argument, Appendix~\ref{app:proof}).\\
+\texttt{UpdatePhysicalOccupancy} & Reserve every paid cell before witness choices; reject external/different-owner occupancy, permit verified same-owner reuse (Lemma~\ref{lem:r2-recognition}).\\
+\texttt{UpdateProfileWitnesses} & Separately select subsets of complete supplied connected components and glue their endpoints. Ignoring a graph component changes neither price nor occupancy (Appendix~\ref{app:proof}).\\
+\texttt{ForgetCompletedInterface} & Erase completed-unit owners to external occupancy; remove expired positions/cells; reject disappearing non-anchor blocks (Lemma~\ref{lem:r2-forget}).\\
+\texttt{ReduceRepresentativePartitions} & After each event retain the least identical-state label; group equal occupancy/selected sets and retain a minimum-label product cut basis (Lemma~\ref{lem:r2-label}).\\
+\texttt{ReconstructAndReplayRepair} & Choose the least accepting label, materialize every selected original action, then check geometry, adjacency and every profile route. An exhaustive empty table means infeasible; a cap does not (Appendix~\ref{app:proof}).\\
+\bottomrule\end{tabular}\end{table*}
+
+Paid but unused effects remain in the stored ID set, cost and occupancy and are
+materialized during final replay. No witness predecessor graph is required for
+reconstruction. Empty demand sets admit the empty cost-zero repair because costs
+are nonnegative; a vacuous profile may use a canonical harmless room anchor.
+Source-equals-target demands likewise require no new edge. Multiple distinct
+sources in one profile remain outside this rooted solver.
+
+For input bit length $B$, a common decimal scale and the sum of original prices
+have polynomial bit length: summing at most $m$ scaled numerators adds
+$O(\log m)$ bits to their maximum length. Stored IDs require at most their total
+input length and polynomial indexing. Exact label addition/comparison therefore
+adds polynomial bit work. There are polynomially many original-action,
+baseline-edge and floor events; resource domains contribute $(h+2)^{zL}$,
+summed selected-set bases contribute $3^{prL}$, and witness branching and explicit
+cut elimination contribute $2^{O(prL)}$. This derives every factor of
+\eqref{eq:bound}, with preprocessing kept additive.
+
+\section{Expressibility, Applicable Algorithms and Parameter Transfer}
+\begin{table*}[t]
+\caption{Algorithmic Correspondence: Expressibility Does Not Alone Establish Identical Parameter Dependence}\label{tab:algorithmic-position}
+\centering\footnotesize
+\begin{tabular}{p{.17\textwidth}p{.28\textwidth}p{.43\textwidth}}
+\toprule Prior model & Purchases, constraints and demands & Applicable result and physical-parameter boundary \\\midrule
+Labelled connectivity~\cite{labels} & Pay once per label across possibly disconnected occurrences; terminal-pair connectivity, no physical occupancy in the plain model & Encodes shared action costs on admissible combinations. A profile-copy construction preserves separate routes; collision restrictions require an extension. The inspected result is not an owned-cell bound.\\
+Restricted-link simultaneous design~\cite{simultaneous} & Buy edges/arcs once across permitted color classes, with color-specific paths & Stated FPT parameter counts multicolored links, not cell-owner domains. Disconnected atomic bundles and physical incompatibilities require a separately justified encoding; no impossibility of such a reduction is claimed.\\
+Steiner with conflicts~\cite{conflicts} & Connected selected support vertices containing terminals; forbidden vertex pairs & Support-graph conflict stretch differs from floor span. A purchase vertex is unsound for disconnected effects; exact action/occurrence selection needs its own correspondence proof.\\
+Weighted A\&C logic~\cite{logic} & Separate actions, owner--cell usages, cells and profile effect occurrences; fixed formula and membership weights & Expresses the full recognized contract. Our supplied expression transfers an algorithm with exponent $O(prL+zL+p+zLh)$; this is one upper-bound construction, not a lower bound for every encoding.\\
+Rank-based connectivity~\cite{rank} & Weighted boundary partitions preserving future completions & Established machinery applies after defining a sufficient physical state. Domain-valued resource augmentation might match our bound; bases and tensoring are not new primitives.\\
+Executed CP-SAT~\cite{cpsat} & Whole-action Booleans, owner/cell OR, exclusive distinct owners, separate profile flows & Fully encodes the strict model and supplies exact labels when every stage is optimal, within its checked cost range. Generic encoding alone gives no stated FPT bound; measured runtime may favor CP-SAT.\\
+\bottomrule\end{tabular}\end{table*}
+The supported proposition is a semantics-preserving physical/interface transfer:
+feasible original action sets correspond to accepting owned-cell executions and
+the least original label is preserved. Generic logic and CP-SAT can express the
+same finite model. The logarithmic owner term is sharper than one displayed
+linear-owner expression bound; a tighter resource formulation may match it.
+Literature priority beyond this precise boundary remains unconfirmed.

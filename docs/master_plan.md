@@ -248,3 +248,19 @@ New measurements require a clean revision and independent replay; G3 priority
 remains OPEN. Public building breadth is a separate evidence gate. Fork and PR
 publication are explicitly authorized by the user for this revision.
 
+
+
+## Second review revision (15 October 2026)
+
+The first PR is merged. The new 17-item checklist is preserved in
+`docs/review2_requirements.md`; implementation, protocol and honest remaining
+gates are tracked in `docs/review2_workflow.md`. Added stronger whole-action
+heuristics, independent/metamorphic checks, scoped phase counters, immutable
+geometry memoization, structural/boundary/ablation protocols, and a deterministic
+multi-room public-source admission experiment. The Molio pilot admits four
+consecutive storeys with nonempty adjacency and a horizontal-permission control
+that changes the optimal shaft chain. It uses hypothetical access annotations,
+not authenticated IFC doors. Pilot/smoke results are excluded from the paper;
+clean pinned repetitions and source-aligned manuscript rendering are next.
+The supported claim is a precise physical/interface transfer; broad priority
+and independent proof review remain open. No submission-readiness claim.

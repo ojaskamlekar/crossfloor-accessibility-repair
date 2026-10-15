@@ -79,3 +79,13 @@ The [nested-profile boundary audit](docs/priority_profile_boundary.md) gives a t
 ## Research-paper reproduction
 
 See [paper/REPRODUCE.md](paper/REPRODUCE.md) for the frozen benchmark, licensed IFC adaptation and manifest-derived manuscript. Building-derived cases use documented hypothetical assumptions; literature priority remains unconfirmed.
+
+
+## Second review revision
+
+The merged first review is followed by the 17-item revision in
+[review2_workflow.md](docs/review2_workflow.md), including the exact claim boundary,
+named proof procedures, stronger heuristic, structural/boundary/ablation protocols,
+and a multi-room IFC-derived controlled experiment. Use the pinned campaign and
+its audited evidence, not dirty pilot output. Original access annotations remain
+hypothetical; broad novelty priority and independent theorem review remain open.

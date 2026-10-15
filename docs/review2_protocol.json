@@ -1,0 +1,18 @@
+{
+  "experiment_id": "review2-structural-routine",
+  "seeds": [0, 1, 2],
+  "repetitions": 5,
+  "budget_seconds": 15,
+  "max_states": 10000,
+  "max_cut_columns": 65536,
+  "methods": ["compressed", "full", "cp-sat", "greedy-exchange"],
+  "families": {
+    "catalogue": [4, 16],
+    "connectivity": [2, 5],
+    "profiles": [1, 3],
+    "ownership": [2, 5],
+    "support": [2, 6],
+    "compression": [3, 5],
+    "compression-unfavorable": [4, 16]
+  }
+}

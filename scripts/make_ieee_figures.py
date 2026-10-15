@@ -201,11 +201,13 @@ def generate(controlled,building,demo_path,output,controls,optimizers=None):
     output.mkdir(parents=True,exist_ok=True)
     if any(output.iterdir()):raise ValueError('fresh output required')
     pipeline(output);demo(demo_path,output);unit_witness(output);scaling(controlled,output);compression(controlled,output);statuses(controlled,output);building_plan(building,output);semantic_costs(controls,output)
+    from review2_diagnostic_figure import diagnostic_figure
+    diagnostic_figure(output)
     if optimizers:greedy_quality(controlled,optimizers,output)
     source_files=[p for root in (controlled,building,demo_path,controls)+((optimizers,) if optimizers else ()) for p in root.rglob('*.json')]
     write_json(output/'figure-provenance.json',dict(generator_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),matplotlib=matplotlib.__version__,python=sys.version,
         sources={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files},
-        schematic_figures=['pipeline','motivating_demo','unit_witness'],plots='raw samples and medians; no DP-only subtraction or significance claim',
+        schematic_figures=['pipeline','motivating_demo','unit_witness','complete_diagnostic'],plots='raw samples and medians; no DP-only subtraction or significance claim',
         outputs={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.glob('*.pdf')}))
 
 
