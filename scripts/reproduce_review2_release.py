@@ -34,12 +34,18 @@ def main():
     if not args.skip_compile:
         compiler=shutil.which("pdflatex")
         if not compiler:raise RuntimeError("pdflatex missing; install TeX or use --skip-compile for source-only regeneration")
-        for _ in range(3):
-            process=subprocess.run([compiler,"-interaction=nonstopmode","-halt-on-error","master.tex"],cwd=out/"paper",capture_output=True,text=True)
-            if process.returncode:raise RuntimeError("LaTeX failed:\n"+process.stdout[-5000:])
+        for iteration in range(5):
+            transcript=out/"paper"/f"compile-{iteration+1}.txt"
+            with transcript.open("w")as stream:
+                process=subprocess.run([compiler,"-interaction=nonstopmode","-halt-on-error","master.tex"],cwd=out/"paper",stdout=stream,stderr=subprocess.STDOUT,text=True)
+            if process.returncode:raise RuntimeError("LaTeX failed:\n"+transcript.read_text()[-5000:])
         log=(out/"paper/master.log").read_text(errors="replace")
         if "Overfull"in log or "There were undefined references"in log or "undefined on input line"in log:
             raise RuntimeError("inspect LaTeX layout/reference warnings before delivery")
+        extractor=shutil.which("pdftotext")
+        if extractor:
+            rendered=subprocess.check_output([extractor,str(out/"paper/master.pdf"),"-"],text=True)
+            if "??"in rendered:raise RuntimeError("unresolved reference visible in rendered PDF")
         print(out/"paper/master.pdf")
 
 
