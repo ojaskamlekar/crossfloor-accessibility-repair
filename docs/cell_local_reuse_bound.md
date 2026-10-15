@@ -1,7 +1,7 @@
 # Additional structural result: cell-local owner lifetimes
 
-This is a project correctness argument for a more useful sweep, supported by thirty focused implementation tests;
-executed comparisons and independent proof review remain pending. It is not a literature
+This is a project correctness argument for a more useful sweep, supported by thirty focused implementation tests and a separately pinned
+207-measurement comparison; independent proof review remains pending. It is not a literature
 priority claim. The rank-based algebra and last-use resource-state idea are
 established techniques; the proposed result concerns their precise transfer to
 the full paid-action contract.
@@ -112,3 +112,27 @@ reverse schedule rather than applying stale last-use indices. This parameter
 is not automatically bounded in every BIM. The old complete-unit and new
 cell-local sweeps offer different sufficient structural regimes; no universal
 dominance, optimal exponent, new algebraic primitive or broad priority is claimed.
+
+## Generic formulation under the refined schedule
+
+The known Action/Usage/Cell/Occurrence/profile-Vertex encoding remains applicable.
+Keep live cells/profile positions and each Usage(owner,cell) object through its
+cell-local first/last incident action. The resulting supplied expression has
+O(prL_a+zL_a+p+zL_a*kappa) live labels and polynomial size. Thus the inspected
+weighted logic theorem also benefits from the refined decomposition. The new
+sweep's logarithmic domain accounting is sharper than this one linear-kappa
+expression transfer, but a generic domain-valued connectivity DP can plausibly
+match it. The chains are elementary diagnostic instances, not novelty evidence.
+Do not turn the improved schedule or executed state reduction into an established
+first algorithm or universal lower-bound claim.
+
+## Executed checkpoint
+
+Clean revision 8dc7a73: ten declared inputs, five repetitions per optimizer,
+207 total records including seven correctness-only oracle calls. Every completed
+exact label agrees. Both complete-unit modes hit a 10,000 raw-state cap on the
+16/32-floor chains. Local expiration completes with peak raw states nine at all
+four chain sizes; CP-SAT also completes. On the restricted-horizontal Molio
+control, the local sweep retains cost 3.3 while peak raw states decrease from
+3,489 to 211, and look-ahead from four floors to two. Larger chains use the
+explicit unique-cut analytical lower bound, not an exhaustive-oracle claim.

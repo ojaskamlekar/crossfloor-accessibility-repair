@@ -15,7 +15,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Restoring accessibility across existing floors requires optimizing complete interventions while preserving room layout and physical asset semantics. We formalize strict cross-floor repair with frozen room polygons, identities and adjacency, profile-specific rooted reachability, atomic action costs, and verified shared-asset reuse. Rectangular footprints are compiled into owned collision cells; a floor-interface algorithm processes complete action--asset units and applies established representative-partition reduction only to connectivity witnesses. We prove an exact bounded-interface guarantee, give safe obligation-and-portal component pruning, and establish a two-floor hardness boundary for arbitrary physical bundles. An independent CP-SAT flow formulation and a whole-action greedy heuristic provide optimization comparators on the same strict model. Evaluation covers 37 authored inputs and twelve controlled variants from three licensed IFC sources. CP-SAT completes all 35 recognized authored inputs and agrees with completed DP and exhaustive comparisons; small inputs have independent certificate replay. Semantic controls show that discarding paid footprints, splitting bundle prices or forbidding compatible reuse can change the optimum. The contribution is the physical accounting contract and an exact transfer of connectivity witnesses to an owned floor interface. The geometric guarantee covers supplied fixed templates under a two-dimensional reserved-interface kernel; construction safety and statutory compliance require additional evidence.
+Restoring access across existing floors requires optimizing complete interventions while preserving room topology and physical asset semantics. We formalize strict cross-floor repair with frozen room polygons and adjacency, profile-specific rooted demands, atomic costs and verified shared-asset reuse. Rectangular footprints are compiled into owned collision cells. Two exact sweeps apply established representative-partition machinery to profile route witnesses while retaining every paid footprint. The complete-unit sweep retains owners within coupling units; an alternative cell-local sweep expires an owner name only after its last possible reuse at that cell. Its bound depends on individual action spans and owner-lifetime overlap rather than an entire shared shaft's span. We give correctness arguments, explicit preprocessing and label accounting, and a two-floor physical-bundle hardness boundary. Independent CP-SAT flow optimization, improved whole-action greedy, exhaustive small checks and replayable solutions support evaluation. A pinned campaign records 1,317 measurements across 69 experiment/case pairs; a separate 207-measurement checkpoint tests the local sweep. On declared 16- and 32-floor chains, earlier DP modes hit a state cap while local expiration and CP-SAT complete. A four-storey, eight-room IFC-derived control changes its optimal shaft chain when horizontal profile permissions change; local expiration preserves its cost and reduces peak raw states. These are controlled subsets with hypothetical access annotations. The contribution is a precise physical/interface transfer and structural accounting result; literature priority remains unconfirmed. Geometric guarantees concern supplied two-dimensional templates, not construction safety or statutory compliance.
 \end{abstract}
 \begin{IEEEkeywords}
 accessibility repair, shared physical assets, exact optimization, parameterized algorithms, reproducible evaluation
@@ -47,8 +47,8 @@ We ask: \emph{Can exact rooted accessibility repair preserve complete physical a
 
 The paper develops three connected contributions:
 \begin{enumerate}
-\item An owned-cell representation and complete coupling-unit sweep preserving action-specific occupancy, verified same-owner reuse and original cost/count/identifier ordering.
-\item A full-action/thin-witness correctness argument, safe component pruning and transfer of established weighted representative partitions to the measured interface, yielding \eqref{eq:bound}; a physical two-floor hardness boundary explains why floor count alone is insufficient.
+\item An owned-cell representation preserving complete physical purchases, verified same-owner reuse and original cost/count/identifier ordering, with complete-unit and cell-local last-use sweeps.
+\item A full-action/thin-witness correctness argument, safe component pruning and transfer of established weighted representative partitions to the measured interface, yielding \eqref{eq:bound} and the action-span bound of Theorem~\ref{thm:local-reuse}; a physical two-floor hardness boundary explains why floor count alone is insufficient.
 \item A manifest-driven evaluation with an independent CP-SAT flow optimizer and whole-action greedy heuristic, alongside exhaustive small-instance checks, analytical scaling and licensed building-derived controlled inputs.
 \end{enumerate}
 These are scoped method and evaluation contributions. Shared-cost labelled connectivity and rank-based partition reduction are prior work. A difference from one concrete generic upper bound does not establish first-ever priority or a lower bound on every existing method.
@@ -98,7 +98,7 @@ Our displayed owner term is logarithmic rather than linear in $h$. For fixed $h$
 
 \section{Strict Repair Model}
 \subsection{Frozen Topology, Profiles and Actions}
-An instance has ordered floors, room polygons/identifiers, shared-boundary adjacency $A$, baseline connections, profiles $q\in\{1,\ldots,p\}$, rooted obligations $(s_q,t)$, and original actions $a$. Each profile has one source and any number of targets. Within-floor doors and inter-floor portals induce profile graphs $H_q$ according to active permissions. Layers never mix: a shared price does not permit profile switching along a route.
+An instance has ordered floors, room polygons/identifiers, shared-boundary adjacency $A$, baseline connections, profiles $q\in\{1,\ldots,p\}$, rooted obligations $(s_q,t)$, and original actions $a$. Each nonvacuous profile has one source and any number of targets; vacuous layers use a canonical harmless anchor. Within-floor doors and inter-floor portals induce profile graphs $H_q$ according to active permissions. Layers never mix: a shared price does not permit profile switching along a route.
 
 Strict repair selects complete physical actions $S$, monotonically activating supplied connection bundles. Its objective label is
 \begin{equation}
@@ -204,6 +204,8 @@ A target is reachable exactly when a selected set contains its element. A repair
 \end{proof}
 The result inherits classical coverage hardness and is not a new reduction technique. It rules out floor-count-only tractability unless $P=NP$, but leaves single-shaft restrictions open. Here $r$ and $z$ grow: it does not contradict \eqref{eq:bound}, prove that exponent optimal, or establish a separation from treewidth, clique-width or CP-SAT.
 
+@@REUSE_THEORY@@
+
 \section{Experimental Design}
 \subsection{Questions and Comparators}
 We evaluate (Q1) exact semantic agreement on small inputs; (Q2) catalogue/owner scaling under measured interfaces; (Q3) compression benefit/overhead and operational boundaries; and (Q4) an auditable building-derived controlled adaptation. Four semantic controls test why geometry, ownership and original prices cannot be simplified silently.
@@ -275,6 +277,10 @@ Hypothetical profiles have square widths/clear patches 0.4/0.5 metres and no sta
 Both modes/oracle agree on every variant (Table~\ref{tab:building}), with certificate replay and zero adjacency change for optimal repairs. Base routes improve from zero of two to two of two. Only B makes profile one infeasible under the stipulated catalogue. The evidence verifies this particular adaptation, not full-building accessibility, real prices, original restoration or construction feasibility.
 
 @@PUBLIC_BUILDING_SECTION@@
+@@REVIEW2_SECTION@@
+
+@@REUSE_RESULTS@@
+
 \section{Discussion and Threats to Validity}
 \subsection{Meaning of the Contribution}
 The central result preserves physical/action semantics under a compact owned interface and rooted witness reduction. Semantic controls make that preservation observable. A raw-catalogue-independent exponential term is useful on the analytical families, but polynomial recognition remains substantial and measured parameters can grow. The comparison with \eqref{eq:generic} is parameter accounting rather than empirical superiority over a published implementation.
@@ -282,7 +288,7 @@ The central result preserves physical/action semantics under a compact owned int
 \subsection{Limits of Evidence}
 Correctness evidence is finite and the formal argument still needs independent review. Certificate graph/replay logic is separate, but schema/geometry are shared, so common geometry errors remain possible. Numerical recognition can reject small cells. Arbitrary demands, candidate doors, implications/exclusions, selection-dependent obstruction and independent-background metadata corrections are excluded. Large analytical inputs lack exhaustive optimum certificates.
 
-The historical suite has only three local timing repetitions; ratios can reflect workstation variability. The additional protocol below separately identifies its repetition policy and code revision. Compression helps little on this corpus and can fail its cut-column cap where full mode succeeds. Generators do not isolate every parameter independently. The historical Duplex subset and three admitted public-source subsets use hypothetical annotations and one room per selected floor. They cannot establish actual renovations, costs or full-building generality; two screened sources remain unsupported. The new hypothetical feasible reference is distinct from original-IFC restoration truth; no human accessibility study is supplied. The additional multi-room experiment below is a separate extracted-subset study with hypothetical access annotations; it does not retroactively turn historical variants into independent buildings.
+The historical suite has only three local timing repetitions; ratios can reflect workstation variability. The additional protocol below separately identifies its repetition policy and code revision. Compression helps little on this corpus and can fail its cut-column cap where full mode succeeds. Generators do not isolate every parameter independently. The two historical Duplex subsets and three admitted public-source subsets use hypothetical annotations and one room per selected floor. They cannot establish actual renovations, costs or full-building generality; two screened sources remain unsupported. The new hypothetical feasible reference is distinct from original-IFC restoration truth; no human accessibility study is supplied. The additional multi-room experiment below is a separate extracted-subset study with hypothetical access annotations; it does not retroactively turn historical variants into independent buildings.
 
 The supported result is a semantics-preserving physical/interface transfer with the explicit bound in \eqref{eq:bound}. Weighted logic and the executed CP-SAT formulation can express the recognized problem. The displayed logarithmic owner term improves on one constructed linear-owner expression bound, not on every possible resource/connectivity algorithm. Literature priority for this transfer remains unconfirmed; rank bases, tensoring and shared-cost connectivity remain attributed prior methods.
 

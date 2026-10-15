@@ -9,7 +9,8 @@
       "status": "relevant_syntax_weighted_bound_and_framework_inspected",
       "locators": "Sections 1.1 and 3 syntax; Theorem 1.2 and Table 1, pp. 6-7; weighted membership-pattern definition pp. 11-12; Theorem 4.5 framework pp. 18-19",
       "retrieval": "Primary full-version PDF text through web tool; no byte fingerprint or full proof audit claimed",
-      "review_date_local": "2026-10-14"
+      "review_date_local": "2026-10-14",
+      "review_recheck": "2026-10-15: version-suffixed endpoints failed; unversioned primary PDF resolved to the December 9, 2022 v2 (56 pages). Theorem 1.2, Table 1, weighted definitions and connectivity-representation section rechecked; no new byte hash or all-proof audit claimed."
     },
     {
       "id": "cornet_laforest_conflict_steiner_2017",

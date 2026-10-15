@@ -39,7 +39,12 @@ def table(caption,label,headers,rows,wide=False):
     return '\n'.join(lines)
 
 
-def build(controlled,building,demo,controls,figures,output,optimizers,public_audit,public_results,review2=None):
+def build(controlled,building,demo,controls,figures,output,optimizers,public_audit,public_results,review2=None,reuse=None):
+    if review2 is None or reuse is None:
+        raise ValueError('current manuscript requires both --review2 and --reuse audited summaries')
+    r2=json.loads((review2/'summary.json').read_text());local=json.loads((reuse/'summary.json').read_text())
+    if (r2['measurement_count'],r2['experiment_case_count'],local['measurements'],local['instance_count'])!=(1317,69,207,10):
+        raise ValueError('update fixed abstract/claim counts for the changed protocol before rendering')
     output.mkdir(parents=True,exist_ok=True)
     if any(output.iterdir()):raise ValueError('fresh empty output required')
     for root in (controlled,building):
@@ -76,10 +81,19 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
     generic=(root/'paper/ieee/generic_appendix.tex').read_text()
     text=template.read_text().replace('@@PROCEDURE_APPENDIX@@',(root/'paper/ieee/procedure_appendix.tex').read_text()).replace('@@PROOF_APPENDIX@@',proof).replace('@@GENERIC_APPENDIX@@',generic).replace('@@PARAMETER_TABLE@@',parameter_table).replace('@@SCALING_TABLE@@',scaling_table).replace('@@CONTROL_TABLE@@',control_table).replace('@@BUILDING_TABLE@@',building_table).replace('@@OPTIMIZATION_TABLE@@',optimizer_table).replace('@@PUBLIC_BUILDING_SECTION@@',public_text)
     if review2:
+        if '@@REVIEW2_SECTION@@' not in text:raise ValueError('missing review2 insertion point')
         from summarize_review2 import paper_section
         text=text.replace('@@REVIEW2_SECTION@@',paper_section(review2))
     else:
         text=text.replace('@@REVIEW2_SECTION@@','')
+    if reuse:
+        if '@@REUSE_THEORY@@' not in text or '@@REUSE_RESULTS@@' not in text:raise ValueError('missing reuse insertion points')
+        from summarize_reuse import paper_section as reuse_section
+        local_text=reuse_section(reuse)
+        split=local_text.index(r'\subsection{Separate Pinned Comparison}')
+        text=text.replace('@@REUSE_THEORY@@',local_text[:split]).replace('@@REUSE_RESULTS@@',r'\section{Cell-Local Sweep Evaluation}'+local_text[split:])
+    else:
+        text=text.replace('@@REUSE_THEORY@@','').replace('@@REUSE_RESULTS@@','')
     experimental_revision = json.loads((controlled/'protocol.json').read_text())['git_revision']
     optimizer_revision = json.loads((optimizers/'protocol.json').read_text())['git_revision']
     text=text.replace('@@EXPERIMENTAL_REVISION@@',experimental_revision[:7]).replace('@@OPTIMIZER_REVISION@@',optimizer_revision[:7])
@@ -90,15 +104,17 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
     (output/'master.tex').write_text(text,encoding='utf-8')
     shutil.copy2(root/'paper/ieee/IEEEtran.cls',output/'IEEEtran.cls')
     shutil.copytree(figures,output/'figures')
-    if review2:
-        for file in review2.glob('*.pdf'):shutil.copy2(file,output/'figures'/file.name)
+    for extra in (review2,reuse):
+        if extra:
+            for file in extra.glob('*.pdf'):shutil.copy2(file,output/'figures'/file.name)
     figure_manifest=json.loads((figures/'figure-provenance.json').read_text())
     for name,digest in figure_manifest['outputs'].items():
         if hashlib.sha256((figures/name).read_bytes()).hexdigest()!=digest:raise ValueError('figure hash mismatch')
     sources=[p for path in (controlled,building,demo,controls,optimizers,public_audit,public_results) for p in path.rglob('*.json')]
     if review2:sources += list(review2.glob('*'))
+    if reuse:sources += list(reuse.glob('*'))
     sources += [root/'paper/ieee/procedure_appendix.tex',template,root/'paper/ieee/generic_appendix.tex',root/'paper/manuscript.template.tex',root/'paper/ieee/IEEEtran.cls',Path(__file__),root/'scripts/review_evidence.py']
-    write_json(output/'master-provenance.json',dict(abstract_words=len(abstract.split()),figure_count=len(list((output/'figures').glob('*.pdf'))),
+    write_json(output/'master-provenance.json',dict(abstract_words=len(abstract.split()),figure_count=text.count(r'\includegraphics'),figure_asset_count=len(list((output/'figures').glob('*.pdf'))),
         source_hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
         experimental_revision=experimental_revision,optimizer_revision=optimizer_revision,
         optimizer_audit=optimizer_audit,public_summary=public_summary,
@@ -110,5 +126,6 @@ def build(controlled,building,demo,controls,figures,output,optimizers,public_aud
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     for name in ('controlled','building','demo','controls','figures','output','optimizers','public-audit','public-results'):parser.add_argument('--'+name,type=Path,required=True)
-    parser.add_argument('--review2',type=Path)
-    args=parser.parse_args();build(args.controlled,args.building,args.demo,args.controls,args.figures,args.output,args.optimizers,args.public_audit,args.public_results,args.review2)
+    parser.add_argument('--review2',type=Path,required=True)
+    parser.add_argument('--reuse',type=Path,required=True)
+    args=parser.parse_args();build(args.controlled,args.building,args.demo,args.controls,args.figures,args.output,args.optimizers,args.public_audit,args.public_results,args.review2,args.reuse)

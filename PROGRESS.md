@@ -328,3 +328,29 @@ span L_a and measured owner-interval overlap kappa. Thirty focused tests pass,
 including the full-action oracle corpus, seeded catalogues and a 33-floor
 analytical chain with L_unit=33, L_a=2, kappa=1. No independent proof approval or
 literature-priority claim follows. Pinned five-repeat comparisons are next.
+
+
+## Second review: completed evidence and current scientific boundary
+
+Full regression: 734 tests passed. The clean 11e285f campaign records 1,317
+measurements over 69 experiment/case pairs; the common four-method cohort has
+62 case pairs and 272 run positions per method. Completed exact labels agree.
+A separate 8dc7a73 checkpoint records 207 measurements over ten inputs, including
+five repeats each for unit/full/local-expiration/CP-SAT. Both earlier DP modes
+hit a 10,000-state cap on the 16/32-floor chains; local expiration retains peak
+raw states nine and CP-SAT also completes. The Molio control preserves cost 3.3
+with 3,489 versus 211 peak raw states. These are scoped results, not universal
+solver superiority or novelty priority.
+
+All five source audits and selected room IDs are mechanically reconciled:
+three used source models, six distinct subsets and 23 controlled variant
+definitions; the historical Duplex cases comprise two subsets. There are zero
+full-building experiments. All original access annotations remain hypothetical.
+Compression removes rows but has no established net runtime benefit on the
+declared stress families; it is positioned as a theoretical ingredient.
+The full-action heuristic, phase/memory/status records, explicit proofs and
+source-aligned manuscript build are integrated. A CLI fall-through bug was
+fixed and regression-tested. Original measurement Git IDs are preserved in the
+review history bundle; API-published trees are checked separately. Broad
+priority, independent proof review, authentic original access evidence and
+venue-specific preparation remain open; no submission-ready claim.

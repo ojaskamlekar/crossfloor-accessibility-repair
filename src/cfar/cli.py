@@ -14,6 +14,7 @@ from .dp_partition import solve_partition
 from .dp_local_intervals import solve_local_shaft
 from .interface_recognition import recognize_physical_interface
 from .dp_owned_interface import solve_owned_interface
+from .reuse_lifetime import solve_reuse_lifetime
 from .schema import load_instance
 
 
@@ -45,13 +46,14 @@ def main() -> None:
     recognize = subparsers.add_parser("recognize-interface", help="check M09 physical-interface assumptions; no solver")
     recognize.add_argument("instance")
     recognize.add_argument("--output", required=True)
-    owned = subparsers.add_parser("solve-owned-interface", help="rooted rectangular physical-interface DP")
-    owned.add_argument("instance")
-    owned.add_argument("--max-states", type=int, default=100000)
-    owned.add_argument("--max-cut-columns", type=int, default=65536)
-    owned.add_argument("--no-compression", action="store_true")
-    owned.add_argument("--prune-irrelevant", action="store_true")
-    owned.add_argument("--output", required=True)
+    for command in ("solve-owned-interface", "solve-reuse-lifetime"):
+        owned = subparsers.add_parser(command, help="exact recognized physical-interface DP")
+        owned.add_argument("instance")
+        owned.add_argument("--max-states", type=int, default=100000)
+        owned.add_argument("--max-cut-columns", type=int, default=65536)
+        owned.add_argument("--no-compression", action="store_true")
+        owned.add_argument("--prune-irrelevant", action="store_true")
+        owned.add_argument("--output", required=True)
     cp = subparsers.add_parser("solve-cp-sat", help="flow baseline on the strict recognized model")
     cp.add_argument("instance")
     cp.add_argument("--time-limit", type=float, default=60)
@@ -59,6 +61,8 @@ def main() -> None:
     cp.add_argument("--output", required=True)
     greedy = subparsers.add_parser("solve-greedy", help="whole-action heuristic; failure is not infeasibility")
     greedy.add_argument("instance")
+    greedy.add_argument("--improve", action="store_true")
+    greedy.add_argument("--exchange-budget", type=int, default=256)
     greedy.add_argument("--output", required=True)
     args = parser.parse_args()
     try:
@@ -79,16 +83,19 @@ def main() -> None:
                     from .cp_sat import solve_cp_sat
                     result = solve_cp_sat(instance, time_limit=args.time_limit, seed=args.seed)
                 else:
-                    from .greedy import solve_greedy
-                    result = solve_greedy(instance)
+                    from .greedy import solve_greedy, improve_greedy
+                    result = improve_greedy(instance, exchange_budget=args.exchange_budget) if args.improve else solve_greedy(instance)
                 write_json(output/"result.json", result)
                 settings = dict(method=result["method"], variant="SCFAR",
                                 timeout=getattr(args, "time_limit", None),
+                                exchange_budget=args.exchange_budget if getattr(args,"improve",False) else None,
                                 elapsed_seconds=time.perf_counter()-started)
                 write_json(output/"manifest.json", manifest(instance, settings, result["status"], getattr(args, "seed", 0)))
                 print(json.dumps({k: result[k] for k in ("status", "cost", "selected")}))
-            elif args.command == "solve-owned-interface":
-                result = solve_owned_interface(instance, compress=not args.no_compression,
+                return
+            elif args.command in {"solve-owned-interface", "solve-reuse-lifetime"}:
+                solver = solve_reuse_lifetime if args.command == "solve-reuse-lifetime" else solve_owned_interface
+                result = solver(instance, compress=not args.no_compression,
                                                max_states=args.max_states, max_cut_columns=args.max_cut_columns,
                                                prune_irrelevant=args.prune_irrelevant)
                 write_json(output/"result.json", result)

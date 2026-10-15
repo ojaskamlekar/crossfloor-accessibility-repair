@@ -53,3 +53,36 @@ For public sources follow docs/public_building_review_protocol.md, then run
 builder. Every admitted portal pair must be consecutive in the original source
 storey order; no intermediate floor is skipped. See paper/ieee/README.md for the
 new required builder arguments and actual pdfLaTeX reproduction path.
+
+
+## Cell-local refinement and final rendering
+
+The 1,317-record campaign is pinned at 11e285f. The additional ten-input,
+207-record cell-local checkpoint is pinned at 8dc7a73, using
+`generate_reuse_inputs.py` and `review2_reuse.json`. It reuses the same three
+Molio controls and adds no source building or selected subset. Subsequent
+changes add reporting, CLI dispatch and a defensive CP-SAT telemetry conversion;
+they do not alter the measured successful cost/flow constraints or lifetime DP.
+
+Generate the denominator audit from historical Duplex inputs, the twelve
+consecutive-storey public inputs, the new multi-room inputs and their copied
+checkpoint variants. Rebuild `summarize_review2.py` with `--denominators` and
+`summarize_reuse.py` with the saved analytical cut witnesses. Run the standalone
+`replay_review2.py` on all five suites to recheck unique selected sets and
+re-enumerate eligible small optimum certificates. The current IEEE builder
+requires BOTH `--review2 <audited-summary>` and `--reuse <audited-reuse-summary>`;
+older argument-only historical builds require their historical source revision.
+It rejects stale fixed abstract counts rather than silently dropping a section.
+
+CLI: `python -m cfar.cli solve-reuse-lifetime input.json --output runs/local-NEW`.
+Improved heuristic: `python -m cfar.cli solve-greedy input.json --improve
+--exchange-budget 256 --output runs/greedy-NEW` (one shell line).
+
+The review archive includes a Git history bundle preserving the actually executed
+local commit IDs. GitHub API publication recreates commit metadata; published
+Git trees are verified identical and commit trailers retain original IDs. Fetch
+the included history bundle for original measurement revisions, or compare tree
+and source fingerprints rather than assuming recreated commit SHAs are identical.
+Geometry metamorphic checks use cases separated from the absolute EPS threshold;
+no scale invariance at that threshold is asserted. Complete-unit and cell-local
+proofs remain project arguments, not independently endorsed novelty claims.

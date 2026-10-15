@@ -44,7 +44,17 @@ these experiments, by having a different application, or by more citations.
 Reopened primary arXiv:2507.09426v1 definitions and tractable-case section, and
 Cornet--Laforest's published section 4. The former defines link-level color
 restrictions and its multicolored-link parameter; the latter's selection is
-support-vertex connectivity with forbidden pairs. The v2 logic HTML/PDF endpoint
-failed in this recheck; its previously inspected primary locators are retained,
-not represented as a fresh full-text reading. Al-Harasis--Jabi and MANSION remain
+support-vertex connectivity with forbidden pairs. The version-suffixed logic endpoint initially failed; the primary unversioned
+PDF subsequently resolved to the same December 9, 2022 v2 manuscript. Theorem
+1.2, Table 1, weighted definitions and the connectivity-representation section
+were rechecked. This is not a claim of auditing every proof in all 56 pages. Al-Harasis--Jabi and MANSION remain
 architectural comparators in the main paper, distinct from algorithmic models.
+
+## Additional cell-local schedule
+
+The cell-local refinement replaces complete-unit span by individual full-action
+span L_a and the measured overlap kappa of owner/cell use intervals. Its precise
+claim and expiration proof are in `cell_local_reuse_bound.md`. The generic resource
+encoding also admits a narrower lifetime-based expression, with linear kappa
+rather than a proof of impossibility. This strengthens the constructive physical
+transfer and implemented structural regime while leaving broad priority open.

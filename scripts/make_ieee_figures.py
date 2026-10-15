@@ -206,6 +206,7 @@ def generate(controlled,building,demo_path,output,controls,optimizers=None):
     if optimizers:greedy_quality(controlled,optimizers,output)
     source_files=[p for root in (controlled,building,demo_path,controls)+((optimizers,) if optimizers else ()) for p in root.rglob('*.json')]
     write_json(output/'figure-provenance.json',dict(generator_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),matplotlib=matplotlib.__version__,python=sys.version,
+        schematic_source_hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest()for p in(Path(__file__).with_name('review2_diagnostic_figure.py'),Path(__file__).parents[1]/'src/cfar/review_generators.py')},
         sources={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in source_files},
         schematic_figures=['pipeline','motivating_demo','unit_witness','complete_diagnostic'],plots='raw samples and medians; no DP-only subtraction or significance claim',
         outputs={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.glob('*.pdf')}))

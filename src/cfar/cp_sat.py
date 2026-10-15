@@ -27,6 +27,13 @@ def integer_costs(actions):
     return coefficients, scale
 
 
+def reported_cost_bound(scaled_bound, scale):
+    """Convert telemetry without overflowing a huge exact decimal denominator."""
+    if not isfinite(scaled_bound):
+        return None
+    return float(Fraction(str(scaled_bound)) / scale)
+
+
 def solve_cp_sat(instance, *, time_limit=60.0, seed=0):
     from ortools.sat.python import cp_model
     import ortools
@@ -157,12 +164,13 @@ def solve_cp_sat(instance, *, time_limit=60.0, seed=0):
         result["bound_precision"] = "exact cost stage; later tie stages may remain unresolved"
     elif stages and stages[0]["best_bound"] is not None and sum(coefficients) <= 2**53:
         # CP-SAT exposes bounds as doubles. Never call these exact certificates.
-        bound = stages[0]["best_bound"] / scale
-        result["best_bound"] = str(bound)
-        result["bound_precision"] = "solver-reported floating estimate in original cost units"
-        if incumbent is not None:
-            upper = float(action_cost(instance, incumbent))
-            result["relative_cost_gap"] = max(0.0, upper-bound)/max(1.0,abs(upper))
+        bound = reported_cost_bound(stages[0]["best_bound"],scale)
+        if bound is not None:
+            result["best_bound"] = str(bound)
+            result["bound_precision"] = "solver-reported floating estimate in original cost units"
+            if incumbent is not None:
+                upper = float(action_cost(instance, incumbent))
+                result["relative_cost_gap"] = max(0.0, upper-bound)/max(1.0,abs(upper))
     if incumbent is not None and result["status"] != "infeasible":
         replay_started = perf_counter()
         repair = apply_actions(instance, incumbent)

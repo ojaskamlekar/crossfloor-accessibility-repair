@@ -161,3 +161,20 @@ def test_cp_sat_cost_bound_and_vacuous_zero_cost_gap():
     instance=diagnostic_example();instance["obligations"]=[]
     result=solve_cp_sat(instance)
     assert result["selected"]==[]and result["best_bound"]=="0"and result["relative_cost_gap"]==0
+
+
+def test_cost_stage_optimality_does_not_claim_completed_identifier_optimization(monkeypatch):
+    pytest.importorskip("ortools")
+    import cfar.cp_sat as module
+    ticks=iter([0.,0.,0.,0.,100.])
+    monkeypatch.setattr(module,"perf_counter",lambda:next(ticks,100.))
+    result=module.solve_cp_sat(diagnostic_example())
+    assert result["status"]=="limit_exceeded"and result["selected"]is None
+    assert result["incumbent"]["cost"]=="2"
+    assert result["best_bound"]=="2"and result["relative_cost_gap"]==0
+
+
+def test_bound_telemetry_handles_subnormal_price_denominators():
+    from cfar.cp_sat import reported_cost_bound
+    assert reported_cost_bound(1.,10**324)==0.
+    assert reported_cost_bound(float("inf"),1)is None

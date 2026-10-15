@@ -3,6 +3,7 @@ import argparse
 from collections import Counter,defaultdict
 import hashlib
 import json
+from fractions import Fraction
 from pathlib import Path
 from statistics import median
 
@@ -30,6 +31,9 @@ def audit(root):
         folder=root/row["instance_id"];instance=json.loads((folder/"input.json").read_text())
         target=folder/f"{row['solver']}-{row['repeat_index']}.json"
         raw=json.loads(target.read_text());m=json.loads(target.with_suffix(".manifest.json").read_text())
+        parameters=raw.get("result",{}).get("parameters")
+        if "solver_parameters"in row and row["solver_parameters"]!=parameters:raise ValueError("reported parameters mismatch")
+        row["solver_parameters"]=parameters
         if m["git_dirty"]or row["code_commit"]!=protocol["code_commit"]or m["git_revision"]!=row["code_commit"]:
             raise ValueError("revision/dirty mismatch")
         if row["instance_sha256"]!=fingerprint(instance)or m["input_fingerprint"]!=row["instance_sha256"]:
@@ -57,7 +61,7 @@ def audit(root):
     return rows,protocol,fingerprints
 
 
-def summarize(roots,output):
+def summarize(roots,output,denominators=None):
     output.mkdir(parents=True,exist_ok=True)
     if any(output.iterdir()):raise ValueError("fresh output required")
     rows=[];protocols=[];sources={};all_fingerprints=None
@@ -78,11 +82,49 @@ def summarize(roots,output):
     for method in counts:
         complete=[r for r in rows if r["solver"]==method and r["end_to_end_seconds"]is not None]
         summaries[method]=dict(status_counts=counts[method],measured_time_count=len(complete))
+    core={"compressed","full","cp-sat","greedy-exchange"}
+    present=defaultdict(set)
+    for r in rows:present[r["experiment_id"],r["instance_id"]].add(r["solver"])
+    common={key for key,methods in present.items()if core<=methods}
+    common_rows=[r for r in rows if (r["experiment_id"],r["instance_id"])in common and r["solver"]in core]
+    common_counts={m:dict(Counter(r["status"]for r in common_rows if r["solver"]==m))for m in sorted(core)}
+    denominators_by_method={m:sum(c.values())for m,c in common_counts.items()}
+    if len(set(denominators_by_method.values()))!=1:raise ValueError("unequal common-cohort repetition counts")
+    exact={(r["experiment_id"],r["instance_id"],r["repeat_index"]):r for r in common_rows if r["solver"]=="cp-sat"}
+    quality=[]
+    for r in common_rows:
+        if r["solver"]!="greedy-exchange"or r["status"]!="feasible":continue
+        c=exact[r["experiment_id"],r["instance_id"],r["repeat_index"]]
+        if c["status"]!="optimal":continue
+        gap=Fraction(r["objective_cost"])-Fraction(c["objective_cost"])
+        if gap<0:raise ValueError("heuristic beat certified optimum")
+        quality.append(dict(experiment_id=r["experiment_id"],instance_id=r["instance_id"],repeat=r["repeat_index"],
+            instance_sha256=r["instance_sha256"],
+            cost_matches=gap==0,full_label_matches=gap==0 and r["selected_action_ids"]==c["selected_action_ids"],
+            relative_excess=float(gap/max(Fraction(1),abs(Fraction(c["objective_cost"]))))))
+    quality_inputs=defaultdict(list)
+    for q in quality:quality_inputs[q["instance_sha256"]].append(q)
+    compression_measurements={}
+    for size in sorted({r["size"]for r in rows if r["generator_family"]=="compression"}):
+        compression_measurements[str(size)]={}
+        for method in("compressed","full"):
+            samples=[r for r in rows if r["generator_family"]=="compression"and r["size"]==size and r["solver"]==method]
+            compression_measurements[str(size)][method]=dict(median_seconds=median(r["end_to_end_seconds"]for r in samples),
+                median_rows_removed=median(r["solver_statistics"]["representative_rows_removed"]for r in samples),
+                median_peak_retained=median(r["peak_retained_states"]for r in samples))
     report=dict(protocols=protocols,measurement_count=len(rows),experiment_case_count=len(cases),
         unique_input_fingerprints=len({r["instance_sha256"]for r in rows}),source_models=source_models,
         source_subsets=source_subsets,public_variants=public,methods=summaries,
         solver_source_fingerprints=all_fingerprints,
+        common_case_pairs=len(common),common_status_counts=common_counts,common_runs_per_method=next(iter(denominators_by_method.values())),
+        heuristic_quality=dict(compared_feasible_runs=len(quality),cost_matching_runs=sum(q["cost_matches"]for q in quality),
+            distinct_serialized_inputs=len(quality_inputs),cost_matching_inputs=sum(all(q["cost_matches"]for q in qs)for qs in quality_inputs.values()),
+            full_label_matching_runs=sum(q["full_label_matches"]for q in quality),max_relative_excess=max((q["relative_excess"]for q in quality),default=None),runs=quality),
+        compression_measurements=compression_measurements,
         interpretation="Measurements, price-seeded variants, selected subsets and original source models are distinct denominators. No full-building experiment. Molio also occurs in historical evidence.")
+    if denominators:
+        report["building_denominators"]=json.loads(denominators.read_text())
+        sources[str(denominators.resolve())]=hashlib.sha256(denominators.read_bytes()).hexdigest()
     write_json(output/"summary.json",report);write_json(output/"results.json",rows)
     plots(rows,output)
     write_json(output/"provenance.json",dict(source_hashes=sources,
@@ -151,15 +193,22 @@ def paper_section(output):
         "These measurements are separate from the historical corpus above. They contain "+str(d["measurement_count"])+" fresh-process measurements over "+str(d["experiment_case_count"])+" experiment/case pairs, not that many independent buildings. Routine structural cases use five repetitions, declared boundary and expensive public cases three, with price seeds 0, 1 and 2 fixed before collection. Only costs vary across seeded copies of fixed geometric families. Raw failures remain in the status counts. Imports/startup are excluded from function times; peak process RSS includes imports. All methods share the same post-ready wall budget in each suite. Memory limits are not imposed and the workstation is not hardware-isolated.",
         r"\subsection{Fair Baselines and Geometry Processing}",
         "The strengthened heuristic prunes redundant actions and examines a deterministic budget of 256 whole-action 0--2-out/0--2-in exchanges, including rescue of failed construction. Every candidate retains full paid geometry; failure is not infeasibility. CP-SAT records cost-stage bounds and interrupted incumbents separately from later identifier tie stages. When available, the reported relative cost gap is max(0,U--L)/max(1,abs(U)); zero-cost optima have gap zero. Solver-reported floating bounds are identified as estimates; unsafe large-integer floating bounds are unavailable rather than silently exact.",
-        "Recognition timings split validation, activation-geometry compilation, footprint preparation, cells and unit/component construction. DP event construction, optimization, replay and extra independent selected-set checks are separate. End-to-end function time remains the primary metric. The memoized mode caches only immutable coordinate polygons and room free-space, never a validity decision or solver result; caches begin empty in each process. The uncached ablation disables both. Footprint-intersection and cell-coverage counts identify their exact compiler scopes.",
-        r"\begin{table}[t]\caption{All Additional Measurement Outcomes (Runs, Not Independent Instances)}\label{tab:review2-status}\centering\scriptsize\begin{tabular}{p{.29\columnwidth}p{.60\columnwidth}}\toprule Method & Outcome counts\\\midrule"]
-    for method,details in d["methods"].items():
-        status=", ".join(str(n)+" "+s.replace("_"," ")for s,n in details["status_counts"].items())
+        "Recognition timings split validation, activation-geometry compilation, footprint preparation, cells and unit/component construction. Compilation includes its semantic revalidation; the geometry field is not a pure GEOS-only profile. DP event construction, optimization, replay and extra independent selected-set checks are separate. End-to-end function time remains the primary metric. The memoized mode caches only immutable coordinate polygons and room free-space, never an action-set feasibility verdict or solver result; caches begin empty in each process. The uncached ablation disables both. Footprint-intersection and cell-coverage counts identify their exact compiler scopes.",
+        r"\begin{table}[t]\caption{Common-Cohort Measurement Outcomes (Same Run Denominator)}\label{tab:review2-status}\centering\scriptsize\begin{tabular}{p{.29\columnwidth}p{.60\columnwidth}}\toprule Method & Outcome counts\\\midrule"]
+    for method,details in d["common_status_counts"].items():
+        status=", ".join(str(n)+" "+s.replace("_"," ")for s,n in details.items())
         lines.append(tex(method)+" & "+tex(status)+r"\\")
-    lines += [r"\bottomrule\end{tabular}\end{table}",r"\begin{figure*}[t]\centering\includegraphics[width=.98\textwidth]{figures/review2_scaling.pdf}\caption{Declared structural families, plotted against measured parameters. Medians and interquartile ranges retain timeout and internal-cap markers. Connectivity width also increases collision-cell count; cyclic size also increases span, so these are not perfectly isolated factorial effects.}\label{fig:review2-scaling}\end{figure*}",
+    lines += [r"\bottomrule\end{tabular}\end{table}","The common cohort contains "+str(d["common_case_pairs"])+" experiment/case pairs and exactly "+str(d["common_runs_per_method"])+" run positions per listed method; separate ablations and correctness-only oracle calls are excluded from these completion counts. The improved heuristic matches the exact cost on "+str(d["heuristic_quality"]["cost_matching_runs"])+" of "+str(d["heuristic_quality"]["compared_feasible_runs"])+" comparable feasible runs. Full original-action label matches are "+str(d["heuristic_quality"]["full_label_matching_runs"])+". Heuristic cost excess is measured against the known optimum, normalized by max(1,abs(optimum)); it is distinct from the CP-SAT incumbent/bound gap.",r"\begin{figure*}[t]\centering\includegraphics[width=.98\textwidth]{figures/review2_scaling.pdf}\caption{Declared structural families, plotted against measured parameters. Medians and interquartile ranges across cost seeds and fresh-process repeats retain timeout and internal-cap markers. Connectivity width also increases collision-cell count; cyclic size also increases span, so these are not perfectly isolated factorial effects.}\label{fig:review2-scaling}\end{figure*}",
         r"\begin{figure*}[t]\centering\includegraphics[width=.96\textwidth]{figures/review2_compression.pdf}\caption{Every declared cyclic and unfavorable compression family. Removed rows, retained states and reduction time are separate measurements; row reduction alone does not establish a net runtime benefit.}\label{fig:review2-compression}\end{figure*}",
         r"\subsection{Multi-Room Horizontal-Access Intervention}"]
+    lines.append("The heuristic comparison covers "+str(d["heuristic_quality"]["distinct_serialized_inputs"])+" distinct serialized inputs; all observed feasible runs match the optimum cost on "+str(d["heuristic_quality"]["cost_matching_inputs"])+" of them. These are price-seeded/controlled inputs, not independent source buildings.")
     public=d["public_variants"]
+    largest=max(d["compression_measurements"],key=int)
+    comp=d["compression_measurements"][largest]["compressed"];full=d["compression_measurements"][largest]["full"]
+    lines.append("The largest declared cyclic size is "+largest+": compressed mode removes a median "+str(comp["median_rows_removed"])+" rows, yet its median function time is "+f"{comp['median_seconds']:.3f}"+" seconds versus "+f"{full['median_seconds']:.3f}"+" for full mode. The declared compression families do not establish a net runtime advantage. We therefore position representative compression primarily as part of the completion-preserving theoretical state bound, with its measured overhead and cut-column limits explicit. Safe component pruning tightens the recorded component bound, but irrelevant-room probes need not reduce states because the implementation already introduces optional positions lazily. Reversed-order and memoization measurements are algorithm ablations, separate from altered-semantics controls.")
+    if "building_denominators"in d:
+        b=d["building_denominators"]
+        lines.append("Across all historical and current building-derived evidence, the mechanical source/room-ID audit counts "+str(b["distinct_audited_source_models"])+" audited source models, "+str(b["distinct_used_source_models"])+" used source models, "+str(b["distinct_selected_subsets"])+" distinct selected subsets and "+str(b["deduplicated_variant_definitions"])+" deduplicated variant definitions. There are "+str(b["full_building_experiments"])+" full-building experiments. Historical and new Duplex subsets use different room IDs; Molio's two-room and eight-room subsets likewise differ. The separate local-expiration checkpoint copies the same three multi-room controls and adds no new building, subset or variant definition.")
     if public:
         lines.append("Five pinned source audits were screened for consecutive-storey connected room subsets. Molio admits one four-storey subset with two original rooms per floor and one shared-boundary adjacency edge on every floor; the other four sources are excluded under the documented admission rule. This is one distinct selected subset and three controlled variants, not three new buildings. Molio also appears in the historical two-room suite, with different selected rooms. No full-building accessibility experiment is claimed. All original room rings/GlobalIds are unchanged and every conservative background obstacle remains in the same union; exact duplicate obstacle rectangles may be deduplicated. Door locations/permissions, profiles, reservations, lift proposals and costs are explicitly hypothetical annotations, not authenticated original IFC openings.")
         lines.append(r"\begin{table}[t]\caption{Same Eight Rooms on Four Consecutive Molio Storeys}\label{tab:review2-multiroom}\centering\scriptsize\begin{tabular}{lrrp{.24\columnwidth}}\toprule Variant & Cost & Actions & Status\\\midrule")
@@ -175,5 +224,5 @@ def paper_section(output):
 
 
 if __name__=="__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("--evidence",nargs="+",type=Path,required=True);parser.add_argument("--output",type=Path,required=True)
-    args=parser.parse_args();summarize(args.evidence,args.output)
+    parser=argparse.ArgumentParser();parser.add_argument("--evidence",nargs="+",type=Path,required=True);parser.add_argument("--output",type=Path,required=True);parser.add_argument("--denominators",type=Path)
+    args=parser.parse_args();summarize(args.evidence,args.output,args.denominators)
